@@ -122,6 +122,9 @@ h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.28;letter-spacin
 .view-head--art{position:relative}
 .view-head--art h1,.view-head--art p{padding-right:104px}
 .view-head__art{position:absolute;right:-6px;top:30px;width:108px;height:auto;pointer-events:none;animation:sniff 3.2s ease-in-out infinite}
+/* el gatito respira despacio mientras duerme */
+.view-head__art--calm{animation:breathe 4s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.03,1.015)}}
 @keyframes sniff{0%,100%{transform:rotate(0)}50%{transform:rotate(-3deg) translateY(1px)}}
 @media (prefers-reduced-motion:reduce){.view-head__art{animation:none}}
 .filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:16px -16px 0;padding:0 16px 2px}

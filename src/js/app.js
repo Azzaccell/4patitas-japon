@@ -471,7 +471,8 @@ app.component('v-cuaderno', {
   },
   template: `
     <main class="view">
-      <header class="view-head">
+      <header class="view-head view-head--art">
+        <img class="view-head__art view-head__art--calm" :src="M('assets/head-cuaderno.webp')" alt="" width="108" height="100">
         <span class="badge"><span class="badge__ico"><ico name="book" /></span>02 / 暮らしの手帖 · EL CUADERNO</span>
         <h1>Sus pequeños días. <span class="sketch">Nuestro álbum.</span></h1>
         <p>La vida de las mascotas del barrio y cada reencuentro.</p>
