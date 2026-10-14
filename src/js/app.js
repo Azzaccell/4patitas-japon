@@ -337,11 +337,12 @@ app.component('v-avisos', {
     watch(() => f.view, v => { if (v === 'mapa') nextTick(() => map && map.invalidateSize()); });
     onBeforeUnmount(() => map && map.remove());
     const filters = [['todos', 'Todos', '#2a3128'], ...Object.entries(TYPES).map(([k, t]) => [k, t.short, t.dot])];
-    return { el, f, list, sel, selected, filters, locate, openSheet, timeAgo };
+    return { el, f, list, sel, selected, filters, locate, openSheet, timeAgo, M };
   },
   template: `
     <main class="view">
-      <header class="view-head">
+      <header class="view-head view-head--art">
+        <img class="view-head__art" :src="M('assets/head-avisos.webp')" alt="" width="108" height="118">
         <span class="badge"><span class="badge__ico"><ico name="pin" /></span>01 / 地域 · EL BARRIO</span>
         <h1>Avisos del <span class="sketch">barrio.</span></h1>
         <p>Perdidos, vistos y encontrados en Santa Cruz. Ayudemos a reconocerlos.</p>

@@ -119,6 +119,11 @@ h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.28;letter-spacin
 /* ---------- avisos: mapa y lista ---------- */
 .view-head h1{font-size:30px;line-height:1.3;margin:10px 0 8px}
 .view-head p{font-size:13px;color:var(--muted)}
+.view-head--art{position:relative}
+.view-head--art h1,.view-head--art p{padding-right:104px}
+.view-head__art{position:absolute;right:-6px;top:30px;width:108px;height:auto;pointer-events:none;animation:sniff 3.2s ease-in-out infinite}
+@keyframes sniff{0%,100%{transform:rotate(0)}50%{transform:rotate(-3deg) translateY(1px)}}
+@media (prefers-reduced-motion:reduce){.view-head__art{animation:none}}
 .filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:16px -16px 0;padding:0 16px 2px}
 .filters::-webkit-scrollbar{display:none}
 .search{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;margin-top:12px;background:var(--white);border:1px solid var(--line);border-radius:24px}
