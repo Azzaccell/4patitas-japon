@@ -411,11 +411,12 @@ app.component('v-publicar', {
       } catch (e) { err.value = 'No se pudo publicar: ' + (e.message || 'revisa tu conexión'); }
       finally { sending.value = false; }
     };
-    return { pick, form, types, onFile, submit, err, sending, SPECIES, ZONES, TYPES, statusStyle, go, openSheet };
+    return { pick, form, types, onFile, submit, err, sending, SPECIES, ZONES, TYPES, statusStyle, go, openSheet, M };
   },
   template: `
     <main class="view">
-      <header class="view-head">
+      <header class="view-head view-head--art">
+        <img class="view-head__art view-head__art--wag" :src="M('assets/head-publicar.webp')" alt="" width="108" height="120">
         <span class="badge"><span class="badge__ico"><ico name="plus" /></span>03 / 参加 · PARTICIPAR</span>
         <h1>Un gesto <span class="sketch">pequeño.</span></h1>
         <p>Puede ser el comienzo de un reencuentro. Toma menos de un minuto.</p>
