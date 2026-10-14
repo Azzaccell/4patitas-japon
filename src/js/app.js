@@ -518,13 +518,14 @@ app.component('v-guardados', {
   },
   template: `
     <main class="view">
-      <header class="view-head">
+      <header class="view-head view-head--art">
+        <img v-if="items.length" class="view-head__art view-head__art--wag" :src="M('assets/head-guardados.webp')" alt="" width="108" height="120">
         <span class="badge"><span class="badge__ico"><ico name="bookmark" /></span>04 / 保存 · GUARDADOS</span>
         <h1>Mis <span class="sketch">páginas.</span></h1>
         <p>Los avisos y las mascotas que guardaste en este teléfono.</p>
       </header>
       <div v-if="!items.length" class="empty">
-        <img :src="M('assets/misha.webp')" alt="" width="150" height="150">
+        <img class="empty__art" :src="M('assets/head-guardados.webp')" alt="" width="170" height="180">
         <h2>Todavía no guardaste nada</h2>
         <p>Toca el marcador en un aviso o en el cuaderno para volver a encontrarlo aquí.</p>
         <button class="btn" @click="go('cuaderno')">Abrir el cuaderno</button>

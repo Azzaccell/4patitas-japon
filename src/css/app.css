@@ -128,6 +128,8 @@ h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.28;letter-spacin
 /* el perrito se balancea contento con su volante */
 .view-head__art--wag{animation:wag 2.6s ease-in-out infinite;transform-origin:50% 95%}
 @keyframes wag{0%,100%{transform:rotate(0)}30%{transform:rotate(2.5deg)}60%{transform:rotate(-2deg)}}
+/* estado vacío de guardados: la gatita espera con su marcador */
+.empty__art{width:170px;height:auto;margin:0 auto 6px;animation:wag 3s ease-in-out infinite;transform-origin:50% 95%}
 @keyframes sniff{0%,100%{transform:rotate(0)}50%{transform:rotate(-3deg) translateY(1px)}}
 @media (prefers-reduced-motion:reduce){.view-head__art{animation:none}}
 .filters{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:16px -16px 0;padding:0 16px 2px}
