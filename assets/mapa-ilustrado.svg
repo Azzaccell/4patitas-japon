@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 550">
+<rect width="700" height="550" fill="#eae9dc"/>
+<g fill="#dedfcf" stroke="#d1d4c3" stroke-width="1.5"><path d="M0 0h160v120H0zM188 0h150v120H188zM368 0h150v120H368zM548 0h152v120H548zM0 150h160v130H0zM188 150h150v130H188zM548 150h152v130H548zM0 310h160v120H0zM188 310h150v120H188zM368 310h150v120H368zM548 310h152v120H548zM0 460h160v90H0zM188 460h150v90H188zM368 460h150v90H368zM548 460h152v90H548z"/></g>
+<path d="M365 148h154v132H365z" fill="#c7d7b7"/>
+<path d="M350-20c35 100 30 180 17 270s-2 220 34 330" stroke="#f9f8ef" stroke-width="26" fill="none"/>
+<path d="M-10 450 710 170" stroke="#f9f8ef" stroke-width="24"/><path d="M-10 450 710 170" stroke="#e1ceb1" stroke-width="3"/>
+<g fill="#bbcab0"><circle cx="397" cy="177" r="15"/><circle cx="479" cy="174" r="17"/><circle cx="488" cy="246" r="18"/><circle cx="411" cy="249" r="12"/></g>
+<g fill="#9fa398" font-family="sans-serif" font-size="13" letter-spacing="2"><text x="206" y="98">SOPOCACHI</text><text x="381" y="220">EL MONTÍCULO</text><text x="540" y="359">SAN JORGE</text><text x="35" y="260">SAN PEDRO</text></g>
+<g stroke="#f5f4e8" stroke-width="5" fill="none"><path d="M15 40h128v60H15zM204 23h115v52H204zM22 180h108v65H22zM558 17h122v76H558zM564 350h113v62H564zM385 460h115v64H385zM25 475h117v54H25z"/></g>
+</svg>
