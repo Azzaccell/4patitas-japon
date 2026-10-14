@@ -1,3 +1,8 @@
 # el HTML original de referencia (5,9 MB) y sus imágenes quedan solo en esta PC
 referencia/
 node_modules/
+android/build/
+android/*.jks
+android/icono-preview.png
+*.apk
+*.idsig

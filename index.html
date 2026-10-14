@@ -893,6 +893,13 @@ const toast = msg => { ui.toast = msg; clearTimeout(toastT); toastT = setTimeout
 window.HUELLAS.onError = toast;
 const openSheet = (kind, id) => { ui.sheet = { kind, id }; document.body.style.overflow = 'hidden'; };
 const closeSheet = () => { ui.sheet = null; document.body.style.overflow = ''; };
+// botón "atrás" de Android (lo llama el APK): cierra la hoja abierta o vuelve a Inicio; false = salir
+window.__patitasBack = () => {
+  if (ui.welcome) return false;
+  if (ui.sheet) { closeSheet(); return true; }
+  if (route.value.tab !== 'inicio') { go('inicio'); return true; }
+  return false;
+};
 if (route.value.open) openSheet(route.value.open.kind === 'aviso' ? 'report' : 'pet', route.value.open.id);
 
 /* guardados: solo en este teléfono */
@@ -903,8 +910,11 @@ const toggleSave = (kind, id) => {
   if (i > -1) state.user.saved.splice(i, 1); else { state.user.saved.unshift(k); toast('Guardado en tu cuaderno'); }
 };
 
+// en el APK o abierto como archivo, el enlace compartido apunta a la web publicada
+const shareBase = () => location.protocol === 'file:' ? (window.HUELLAS_CONFIG || {}).siteUrl || '' : location.origin + location.pathname;
 const share = async (title, hash) => {
-  const url = location.origin + location.pathname + hash;
+  const url = shareBase() + hash;
+  if (window.AndroidApp) { window.AndroidApp.share(title, url); return; }
   try { if (navigator.share) { await navigator.share({ title, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } catch (e) { toast('Copia este enlace: ' + url); }
 };
