@@ -38,7 +38,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.28;letter-spacin
 .brand{display:flex;align-items:center;gap:8px}
 .brand img{width:44px;height:auto}
 .brand span{font-family:var(--hand);font-size:26px;line-height:1;padding-top:3px}
-.brand .titulo{height:34px;width:auto}
+.brand .titulo{height:40px;width:auto;max-width:170px}
 .place{display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.25;text-align:right}
 .place small{display:block;color:var(--muted);font-size:9.5px}
 .place .icon{width:16px;height:16px}
