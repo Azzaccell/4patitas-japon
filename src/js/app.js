@@ -346,7 +346,9 @@ app.component('v-avisos', {
     watch(() => f.view, v => { if (v === 'mapa') nextTick(() => map && map.invalidateSize()); });
     onBeforeUnmount(() => map && map.remove());
     const filters = [['todos', 'Todos', '#3a2418'], ...Object.entries(TYPES).map(([k, t]) => [k, t.short, t.dot])];
-    return { el, f, list, sel, selected, filters, locate, openSheet, timeAgo, M };
+    // al abrir el perfil completo se cierra la tarjetita del mapa
+    const openFromPeek = () => { const id = sel.value; sel.value = null; openSheet('report', id); };
+    return { el, f, list, sel, selected, filters, locate, openSheet, openFromPeek, timeAgo, M };
   },
   template: `
     <main class="view">
@@ -369,7 +371,7 @@ app.component('v-avisos', {
         <div class="map" ref="el"></div>
         <span class="map__tag">SANTA CRUZ DE LA SIERRA</span>
         <button class="btn btn--light btn--sm map__me" @click="locate"><ico name="locate" />Cerca de mí</button>
-        <button v-if="selected" class="peek" @click="openSheet('report', selected.id)">
+        <button v-if="selected" class="peek" @click="openFromPeek">
           <span class="report__img"><media :item="selected" /></span>
           <div><status-pill :type="selected.type" /><strong>{{ selected.name }}</strong><p>{{ selected.zone }} · {{ timeAgo(selected.date) }}</p></div>
           <ico name="arrow" />

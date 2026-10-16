@@ -8,7 +8,7 @@ $bt   = "$sdk\build-tools\36.0.0"
 $jar  = "$sdk\platforms\android-35\android.jar"
 $jbr  = "C:\Program Files\Android\Android Studio\jbr"
 $env:JAVA_HOME = $jbr
-$version = '1.2'; $code = 3
+$version = '1.3'; $code = 4
 $out  = "$root\build"
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item -ItemType Directory -Force "$out\obj","$out\dex","$out\assets" | Out-Null
