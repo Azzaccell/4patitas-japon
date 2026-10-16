@@ -1,7 +1,7 @@
 /* 4 PATITAS JAPÓN — app para celular (Vue 3 + Leaflet, todo en un solo HTML) */
 const { createApp, ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick, markRaw } = Vue;
 const { state, TYPES, SPECIES, ACCENTS, accentOf, ZONES, CENTER, matches, timeAgo, km, M, actions, status, canEdit, auth } = window.HUELLAS;
-const BRAND = '4 Patitas';
+const BRAND = 'Cuatro Patitas';
 
 /* ---------- íconos de línea ---------- */
 const ICONS = {
@@ -197,15 +197,13 @@ app.component('report-row', {
 /* ---------- barra superior: marca (o el título manuscrito de Gemini cuando exista) ---------- */
 app.component('top-bar', {
   setup() {
-    const titleFail = ref(false);
     const openAccount = () => openSheet('cuenta');
-    return { M, titleFail, status, openAccount, go };
+    return { M, status, openAccount, go };
   },
   template: `
     <header class="top">
       <a href="#/inicio" class="brand" @click.prevent="go('inicio')" aria-label="${BRAND}, inicio">
-        <img v-if="!titleFail" class="titulo" :src="M('assets/titulo.webp')" alt="${BRAND}" @error="titleFail = true">
-        <template v-else><img :src="M('assets/logo-original.svg')" alt="" width="44" height="39"><span>4 Patitas.</span></template>
+        <span class="wordmark" aria-hidden="true">Cuatro pat<span class="wordmark__i">ı</span>tas</span>
       </a>
       <div class="top__end">
         <div class="place"><ico name="pin" /><div>Santa Cruz<small><span v-if="status.online" class="live"></span>{{ status.online ? 'en vivo' : 'este teléfono' }}</small></div></div>
@@ -242,15 +240,17 @@ app.component('welcome', {
     return { box, i, slides, onScroll, next, M, emit };
   },
   template: `
-    <div class="welcome" role="dialog" aria-label="Bienvenida a ${BRAND}">
+    <div class="welcome" :class="{poster: slides[i].solid}" role="dialog" aria-label="Bienvenida a ${BRAND}">
       <button class="skip" @click="emit('done')">Saltar</button>
       <div class="welcome__slides" ref="box" @scroll.passive="onScroll">
-        <section class="slide" v-for="s in slides" :key="s.tag">
+        <section class="slide" :class="{'slide--poster': s.solid}" v-for="s in slides" :key="s.tag">
           <span class="jp-tag">{{ s.tag }}</span>
-          <img :src="M(s.img)" :class="{solid: s.solid}" alt="" width="330" height="250">
-          <span class="bubble bubble--tail">{{ s.bubble }}</span>
-          <h1>{{ s.title }}</h1>
-          <p>{{ s.text }}</p>
+          <img :src="M(s.img)" alt="" width="330" height="250">
+          <div class="slide__text">
+            <span class="bubble bubble--tail">{{ s.bubble }}</span>
+            <h1>{{ s.title }}</h1>
+            <p>{{ s.text }}</p>
+          </div>
         </section>
       </div>
       <div class="welcome__foot">
@@ -284,9 +284,9 @@ app.component('v-inicio', {
         <a href="#/guardados" @click.prevent="go('guardados')"><span class="n">03</span><div><strong>Volver a mis guardados</strong><span>{{ state.user.saved.length }} páginas guardadas</span></div><ico name="arrow" /></a>
       </nav>
 
-      <div class="strip strip--mascota">
+      <div class="poster-card">
         <img :src="M('assets/mascota-banner.webp')" alt="Una gata calicó y un perro blanco con sombreros de paja y pañoletas verdes" width="640" height="447" loading="lazy">
-        <p class="hand">Un poquito<br>de compañía.</p>
+        <p class="wordmark wordmark--big">Un poquito de compañía<span class="wordmark__dot">.</span></p>
       </div>
 
       <div class="heading"><div><span class="eyebrow">Una mano cerca</span><h2>Avisos recientes</h2></div><a class="link" href="#/avisos" @click.prevent="go('avisos')">Ver todos</a></div>

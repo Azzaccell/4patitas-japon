@@ -12,6 +12,9 @@
   --pastel:#f9d3b8; --pastel-light:#fbe6d4; --pastel-dark:#efb08c;
   --green:#b5532f; --green-dark:#86391d; --yellow:#efd49b; --hanko:#c24332; --blue:#405c6d;
   --salmon:#efa274; --terracota:#d7774f; --bandana:#1b743c;
+  /* colores medidos en los bordes de la ilustración: así la imagen se funde con la interfaz sin costuras */
+  --sky:#efa273; --ground:#d7774f; --cream:#f6efd6; --bar:#c8653f;
+  --round:'Quicksand','Nunito','Varela Round',var(--sans);
   --serif:'Shippori Mincho','Hiragino Mincho ProN','Yu Mincho',Georgia,serif;
   --hand:'Patrick Hand','Segoe Print',cursive;
   --sans:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -36,15 +39,18 @@ h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.28;letter-spacin
 @media (min-width:560px){ .phone{box-shadow:0 0 0 1px var(--line),0 30px 80px -40px rgba(58,36,24,.35)} }
 
 /* ---------- barra superior ---------- */
-.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:10px;height:calc(var(--top) + var(--safe-t));padding:var(--safe-t) 16px 0;background:rgba(253,246,234,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:10px;height:calc(var(--top) + var(--safe-t));padding:var(--safe-t) 16px 0;background:var(--bar);color:var(--cream);box-shadow:0 1px 0 rgba(58,36,24,.18)}
 .brand{display:flex;align-items:center;gap:8px}
-.brand img{width:44px;height:auto}
-.brand span{font-family:var(--hand);font-size:26px;line-height:1;padding-top:3px}
-.brand .titulo{height:38px;width:auto;max-width:min(190px,52vw);object-fit:contain;object-position:left center}
+.wordmark{font-family:var(--round);font-weight:700;font-size:25px;line-height:1;letter-spacing:-.015em;color:var(--cream);white-space:nowrap}
+/* el punto de la i es la pañoleta verde de la mascota */
+.wordmark__i{position:relative;display:inline-block}
+.wordmark__i::after{content:"";position:absolute;left:50%;top:.17em;width:.19em;height:.19em;margin-left:-.095em;border-radius:50%;background:var(--bandana)}
+.wordmark__dot{color:var(--bandana)}
+.wordmark--big{font-size:24px;white-space:normal;text-align:center}
 .place{display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.25;text-align:right}
-.place small{display:block;color:var(--muted);font-size:9.5px}
+.place small{display:block;color:var(--cream);opacity:.85;font-size:9.5px}
 .place .icon{width:16px;height:16px}
-.avatar-btn{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;background:var(--pastel);overflow:hidden;font-family:var(--serif);font-weight:700}
+.avatar-btn{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;background:var(--cream);color:var(--ink);overflow:hidden;font-family:var(--serif);font-weight:700}
 .avatar-btn img{width:100%;height:100%;object-fit:cover}
 .top__end{display:flex;align-items:center;gap:10px}
 
@@ -103,10 +109,10 @@ h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.28;letter-spacin
 .strip{margin:26px -16px 0;background:var(--white);border-block:1px solid var(--line);padding:18px 16px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
 .strip img{width:100%;max-width:260px;border-radius:10px}
 .strip .hand{transform:rotate(-3deg)}
-/* la mascota de la app: tarjeta salmón a todo lo ancho con la nota a mano debajo */
-.strip--mascota{grid-template-columns:minmax(0,1fr);background:var(--salmon);border-color:var(--pastel-dark);padding:14px 16px 16px;text-align:center}
-.strip--mascota img{width:100%;max-width:100%;height:auto;border-radius:14px;border:1.5px solid var(--ink)}
-.strip--mascota .hand{color:var(--ink);transform:rotate(-2deg);margin-top:-4px}
+/* la mascota de la app a todo lo ancho: el cielo y el suelo de la ilustración continúan en la tarjeta */
+.poster-card{margin:26px -16px 0;background:var(--ground);text-align:center;padding-bottom:22px}
+.poster-card img{width:100%;height:auto;display:block}
+.poster-card .wordmark{margin:4px 24px 0}
 .story{display:block;width:100%;text-align:left;margin-top:8px}
 .story img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
 .story h3{font-size:23px;margin:10px 0 4px}
@@ -266,8 +272,20 @@ textarea.input{min-height:96px;resize:vertical}
 .welcome__slides{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
 .welcome__slides::-webkit-scrollbar{display:none}
 .slide{flex:0 0 100%;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:0 24px;text-align:center}
-.slide img{width:min(82%,330px);border-radius:16px;mask-image:radial-gradient(ellipse 62% 60% at 50% 50%,#000 60%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse 62% 60% at 50% 50%,#000 60%,transparent 100%)}
-.slide img.solid{mask-image:none;-webkit-mask-image:none;border-radius:22px;box-shadow:4px 4px 0 var(--pastel-dark);border:1.5px solid var(--ink)}
+.slide img{width:min(82%,330px);height:auto;border-radius:16px;mask-image:radial-gradient(ellipse 62% 60% at 50% 50%,#000 60%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse 62% 60% at 50% 50%,#000 60%,transparent 100%)}
+.slide__text{display:flex;flex-direction:column;align-items:center;gap:14px}
+.welcome{transition:background-color .4s}
+.welcome.poster{background:linear-gradient(var(--sky) 50%,var(--ground) 50%)}
+.slide:not(.slide--poster){background:var(--pastel-light) radial-gradient(rgba(58,36,24,.09) 1.1px,transparent 1.2px) 0 0/16px 16px}
+.slide--poster{justify-content:flex-start;gap:0;padding:0;background:var(--sky)}
+.slide--poster .jp-tag{margin:46px 0 4px;background:transparent;border-color:var(--ink)}
+.slide--poster img{width:100%;height:auto;max-width:none;border-radius:0;mask-image:none;-webkit-mask-image:none}
+.slide--poster .slide__text{flex:1;align-self:stretch;background:var(--ground);padding:6px 24px 0}
+.slide--poster h1{color:var(--cream);font-family:var(--round);font-weight:700;letter-spacing:-.02em}
+.slide--poster p{color:var(--cream)}
+.slide--poster .bubble{margin-top:-28px}
+.welcome.poster .dots i{background:rgba(246,239,214,.45)}
+.welcome.poster .dots i.on{background:var(--cream)}
 .slide h1{font-size:29px}
 .slide p{font-size:14px;color:var(--ink-light);max-width:320px}
 .welcome__foot{display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 24px}
@@ -299,3 +317,4 @@ textarea.input{min-height:96px;resize:vertical}
 @keyframes blink{50%{opacity:.3}}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.top .live{background:var(--cream)}

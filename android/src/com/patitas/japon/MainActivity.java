@@ -22,7 +22,7 @@ import android.webkit.WebViewClient;
 /** 4 Patitas: la app web (index.html de un solo archivo) dentro de un WebView. */
 public class MainActivity extends Activity {
     private static final int REQ_FILE = 1, REQ_LOCATION = 2;
-    private static final String PAPER = "#FDF6EA";
+    private static final String PAPER = "#FDF6EA", BAR = "#C8653F";
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
     private GeolocationPermissions.Callback geoCallback;
@@ -32,11 +32,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Window w = getWindow();
-        w.setStatusBarColor(Color.parseColor(PAPER));
+        w.setStatusBarColor(Color.parseColor(BAR));       // misma terracota que la barra de la app, íconos claros
         w.setNavigationBarColor(Color.parseColor(PAPER));
-        int flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR; // íconos oscuros sobre el papel claro
-        if (Build.VERSION.SDK_INT >= 26) flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-        w.getDecorView().setSystemUiVisibility(flags);
+        if (Build.VERSION.SDK_INT >= 26) w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
 
         web = new WebView(this);
         web.setBackgroundColor(Color.parseColor(PAPER));
