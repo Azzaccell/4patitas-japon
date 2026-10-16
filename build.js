@@ -21,7 +21,8 @@ const html = `<!doctype html>
 <html lang="es">
 <head>
 ${head}
-<link rel="icon" type="image/svg+xml" href="${media['assets/logo-original.svg']}">
+<link rel="icon" type="image/png" href="${media['assets/icono.png']}">
+<link rel="apple-touch-icon" href="${media['assets/icono.png']}">
 <style>
 ${r('vendor/leaflet.min.css')}
 ${r('src/css/app.css')}

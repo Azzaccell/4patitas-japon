@@ -114,13 +114,13 @@ const RINGS = [['1er', 750], ['2do', 1450], ['3er', 2350], ['4to', 3350], ['5to'
 const RADIALS = [-12, 18, 48, 82, 128, 168, 205, 240, 300, 335];
 const offset = ([lat, lng], m, deg) => { const r = deg * Math.PI / 180; return [lat + (m * Math.cos(r)) / 111320, lng + (m * Math.sin(r)) / (111320 * Math.cos(lat * Math.PI / 180))]; };
 function drawCity(map, labels) {
-  RADIALS.forEach(d => L.polyline([offset(CENTER, 300, d), offset(CENTER, 9600, d)], { color: '#cad7c6', weight: 1.5, interactive: false }).addTo(map));
+  RADIALS.forEach(d => L.polyline([offset(CENTER, 300, d), offset(CENTER, 9600, d)], { color: '#efc6a8', weight: 1.5, interactive: false }).addTo(map));
   RINGS.forEach(([n, m], i) => {
-    L.circle(CENTER, { radius: m, color: '#2a3128', weight: i < 4 ? 1.6 : 1.1, opacity: .7, fill: false, interactive: false }).addTo(map);
+    L.circle(CENTER, { radius: m, color: '#3a2418', weight: i < 4 ? 1.6 : 1.1, opacity: .7, fill: false, interactive: false }).addTo(map);
     if (labels) L.marker(offset(CENTER, m, 0), { interactive: false, icon: L.divIcon({ className: '', iconSize: [0, 0], html: `<div class="ring-label">${n} anillo</div>` }) }).addTo(map);
   });
   L.polyline([[-17.70, -63.215], [-17.73, -63.222], [-17.76, -63.214], [-17.79, -63.221], [-17.82, -63.214], [-17.86, -63.222]], { color: '#405c6d', weight: 6, opacity: .35, lineCap: 'round', interactive: false }).addTo(map);
-  L.circleMarker(CENTER, { radius: 6, color: '#2a3128', fillColor: '#f4dd7e', fillOpacity: 1, weight: 1.6, interactive: false }).addTo(map);
+  L.circleMarker(CENTER, { radius: 6, color: '#3a2418', fillColor: '#efa274', fillOpacity: 1, weight: 1.6, interactive: false }).addTo(map);
   if (labels) {
     Object.entries(ZONES).forEach(([z, ll]) => L.marker(ll, { interactive: false, icon: L.divIcon({ className: '', iconSize: [0, 0], html: `<div class="zone-label">${z}</div>` }) }).addTo(map));
     L.marker([-17.775, -63.227], { interactive: false, icon: L.divIcon({ className: '', iconSize: [0, 0], html: '<div class="river-label">río Piraí</div>' }) }).addTo(map);
@@ -182,7 +182,7 @@ app.component('media', {
 });
 app.component('status-pill', {
   props: ['type'], setup: () => ({ TYPES, statusStyle }),
-  template: `<span class="status" :style="statusStyle(type)"><b>{{ TYPES[type].jp }}</b>{{ TYPES[type].label }}</span>`,
+  template: `<span class="status" :style="statusStyle(type)">{{ TYPES[type].label }}</span>`,
 });
 app.component('report-row', {
   props: ['r'], setup: () => ({ timeAgo, openSheet }),
@@ -233,9 +233,9 @@ app.component('welcome', {
   setup(_, { emit }) {
     const box = ref(null), i = ref(0);
     const slides = [
-      { img: 'assets/portada.webp', tag: '第零章 · 出会い · ENCUENTRO', title: 'Cada patita tiene un lugar en nuestro barrio.', text: 'Para compartir la vida con quienes nos hacen felices. Para acompañar a quienes necesitan volver a casa.', bubble: '「¡Cada patita cuenta!」' },
-      { img: 'assets/rastro.webp', tag: '01 / 地域 · EL BARRIO', title: 'Una patita perdida. Un barrio entero para encontrarla.', text: 'Una foto, un lugar en el mapa de Santa Cruz y un pequeño detalle pueden hacer la diferencia.', bubble: '「¿Lo has visto pasar?」' },
-      { img: 'assets/siesta.webp', tag: '02 / 暮らしの手帖 · EL CUADERNO', title: 'Sus pequeños días. Nuestro álbum favorito.', text: 'Comparte la vida de tu mascota, guarda las páginas que te gustan y celebra cada reencuentro.', bubble: '「Las cosas pequeñas también cuentan」' },
+      { img: 'assets/mascota.webp', solid: true, tag: 'CAPÍTULO 0 · EL ENCUENTRO', title: 'Cada patita tiene un lugar en nuestro barrio.', text: 'Para compartir la vida con quienes nos hacen felices. Para acompañar a quienes necesitan volver a casa.', bubble: '¡Cada patita cuenta!' },
+      { img: 'assets/rastro.webp', tag: 'CAPÍTULO 1 · EL BARRIO', title: 'Una patita perdida. Un barrio entero para encontrarla.', text: 'Una foto, un lugar en el mapa de Santa Cruz y un pequeño detalle pueden hacer la diferencia.', bubble: '¿Lo has visto pasar?' },
+      { img: 'assets/siesta.webp', tag: 'CAPÍTULO 2 · EL CUADERNO', title: 'Sus pequeños días. Nuestro álbum favorito.', text: 'Comparte la vida de tu mascota, guarda las páginas que te gustan y celebra cada reencuentro.', bubble: 'Las cosas pequeñas también cuentan' },
     ];
     const onScroll = () => { const el = box.value; i.value = Math.round(el.scrollLeft / el.clientWidth); };
     const next = () => { if (i.value >= slides.length - 1) return emit('done'); box.value.scrollTo({ left: (i.value + 1) * box.value.clientWidth, behavior: 'smooth' }); };
@@ -247,7 +247,7 @@ app.component('welcome', {
       <div class="welcome__slides" ref="box" @scroll.passive="onScroll">
         <section class="slide" v-for="s in slides" :key="s.tag">
           <span class="jp-tag">{{ s.tag }}</span>
-          <img :src="M(s.img)" alt="" width="330" height="250">
+          <img :src="M(s.img)" :class="{solid: s.solid}" alt="" width="330" height="250">
           <span class="bubble bubble--tail">{{ s.bubble }}</span>
           <h1>{{ s.title }}</h1>
           <p>{{ s.text }}</p>
@@ -276,7 +276,6 @@ app.component('v-inicio', {
           <h1>Un barrio. Muchas pequeñas <span class="sketch">historias.</span></h1>
           <p>Mira a tu alrededor. Quizá alguien necesita volver a casa.</p>
         </div>
-        <img class="hello__art" :src="M('assets/logo-original.svg')" alt="" width="96" height="85">
       </div>
 
       <nav class="directory stagger" aria-label="Qué puedes hacer">
@@ -285,8 +284,8 @@ app.component('v-inicio', {
         <a href="#/guardados" @click.prevent="go('guardados')"><span class="n">03</span><div><strong>Volver a mis guardados</strong><span>{{ state.user.saved.length }} páginas guardadas</span></div><ico name="arrow" /></a>
       </nav>
 
-      <div class="strip">
-        <img :src="M('assets/portada.webp')" alt="Dibujo de un perrito blanco y una gata calicó" width="260" height="145" loading="lazy">
+      <div class="strip strip--mascota">
+        <img :src="M('assets/mascota-banner.webp')" alt="Una gata calicó y un perro blanco con sombreros de paja y pañoletas verdes" width="640" height="447" loading="lazy">
         <p class="hand">Un poquito<br>de compañía.</p>
       </div>
 
@@ -294,7 +293,7 @@ app.component('v-inicio', {
       <div class="stagger"><report-row v-for="r in recent" :key="r.id" :r="r" /></div>
 
       <template v-if="story">
-        <div class="heading"><div><span class="eyebrow">Del cuaderno</span><h2>Una historia con final feliz</h2></div><span class="hanko">帰宅</span></div>
+        <div class="heading"><div><span class="eyebrow">Del cuaderno</span><h2>Una historia con final feliz</h2></div><span class="hanko" aria-hidden="true"><ico name="paw" /></span></div>
         <button class="story" @click="openSheet('report', story.id)">
           <img :src="M(story.photo || 'assets/engawa.webp')" :alt="story.name" loading="lazy">
           <h3>{{ story.name }} volvió a casa.</h3>
@@ -346,14 +345,14 @@ app.component('v-avisos', {
     watch(list, draw);
     watch(() => f.view, v => { if (v === 'mapa') nextTick(() => map && map.invalidateSize()); });
     onBeforeUnmount(() => map && map.remove());
-    const filters = [['todos', 'Todos', '#2a3128'], ...Object.entries(TYPES).map(([k, t]) => [k, t.short, t.dot])];
+    const filters = [['todos', 'Todos', '#3a2418'], ...Object.entries(TYPES).map(([k, t]) => [k, t.short, t.dot])];
     return { el, f, list, sel, selected, filters, locate, openSheet, timeAgo, M };
   },
   template: `
     <main class="view">
       <header class="view-head view-head--art">
         <img class="view-head__art" :src="M('assets/head-avisos.webp')" alt="" width="108" height="118">
-        <span class="badge"><span class="badge__ico"><ico name="pin" /></span>01 / 地域 · EL BARRIO</span>
+        <span class="badge"><span class="badge__ico"><ico name="pin" /></span>01 · EL BARRIO</span>
         <h1>Avisos del <span class="sketch">barrio.</span></h1>
         <p>Perdidos, vistos y encontrados en Santa Cruz. Ayudemos a reconocerlos.</p>
       </header>
@@ -427,7 +426,7 @@ app.component('v-publicar', {
     <main class="view">
       <header class="view-head view-head--art">
         <img class="view-head__art view-head__art--wag" :src="M('assets/head-publicar.webp')" alt="" width="108" height="120">
-        <span class="badge"><span class="badge__ico"><ico name="plus" /></span>03 / 参加 · PARTICIPAR</span>
+        <span class="badge"><span class="badge__ico"><ico name="plus" /></span>03 · PARTICIPAR</span>
         <h1>Un gesto <span class="sketch">pequeño.</span></h1>
         <p>Puede ser el comienzo de un reencuentro. Toma menos de un minuto.</p>
       </header>
@@ -484,7 +483,7 @@ app.component('v-cuaderno', {
     <main class="view">
       <header class="view-head view-head--art">
         <img class="view-head__art view-head__art--calm" :src="M('assets/head-cuaderno.webp')" alt="" width="108" height="100">
-        <span class="badge"><span class="badge__ico"><ico name="book" /></span>02 / 暮らしの手帖 · EL CUADERNO</span>
+        <span class="badge"><span class="badge__ico"><ico name="book" /></span>02 · EL CUADERNO</span>
         <h1>Sus pequeños días. <span class="sketch">Nuestro álbum.</span></h1>
         <p>La vida de las mascotas del barrio y cada reencuentro.</p>
       </header>
@@ -530,7 +529,7 @@ app.component('v-guardados', {
     <main class="view">
       <header class="view-head view-head--art">
         <img v-if="items.length" class="view-head__art view-head__art--wag" :src="M('assets/head-guardados.webp')" alt="" width="108" height="120">
-        <span class="badge"><span class="badge__ico"><ico name="bookmark" /></span>04 / 保存 · GUARDADOS</span>
+        <span class="badge"><span class="badge__ico"><ico name="bookmark" /></span>04 · GUARDADOS</span>
         <h1>Mis <span class="sketch">páginas.</span></h1>
         <p>Los avisos y las mascotas que guardaste en este teléfono.</p>
       </header>
@@ -580,7 +579,7 @@ app.component('s-report', {
         <img v-if="r.photo" class="detail-photo" :src="M(r.photo)" :alt="r.name">
         <div v-else class="detail-photo blank"><ico name="paw" /></div>
         <div class="sheet__body detail">
-          <div class="flex" style="display:flex;align-items:center;gap:10px;margin-top:14px"><status-pill :type="r.type" /><span class="meta">{{ timeAgo(r.date) }}</span><span class="hanko hanko--sm" style="margin-left:auto">{{ TYPES[r.type].jp }}</span></div>
+          <div class="flex" style="display:flex;align-items:center;gap:10px;margin-top:14px"><status-pill :type="r.type" /><span class="meta">{{ timeAgo(r.date) }}</span><span class="hanko hanko--sm" style="margin-left:auto" aria-hidden="true"><ico name="paw" /></span></div>
           <h2>{{ r.name }}</h2>
           <p class="meta">{{ r.zone }} · Santa Cruz de la Sierra</p>
           <p style="margin-top:12px;font-size:14.5px">{{ r.desc }}</p>
@@ -679,7 +678,7 @@ app.component('s-cuenta', {
       <div class="sheet__grab"><i></i></div>
       <button class="sheet__x" @click="closeSheet" aria-label="Cerrar"><ico name="close" /></button>
       <div class="sheet__body">
-        <span class="badge" style="margin-top:8px"><span class="badge__ico"><ico name="user" /></span>05 / 私 · MI CUENTA</span>
+        <span class="badge" style="margin-top:8px"><span class="badge__ico"><ico name="user" /></span>05 · MI CUENTA</span>
         <template v-if="status.user">
           <h2 style="font-size:28px;margin:14px 0 2px">Hola, {{ status.user.name }}.</h2>
           <p class="meta">{{ status.user.email }}</p>

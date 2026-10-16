@@ -4,5 +4,6 @@ node_modules/
 android/build/
 android/*.jks
 android/icono-preview.png
+android/icono-completo.png
 *.apk
 *.idsig

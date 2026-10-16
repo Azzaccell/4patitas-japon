@@ -22,7 +22,7 @@ import android.webkit.WebViewClient;
 /** 4 Patitas: la app web (index.html de un solo archivo) dentro de un WebView. */
 public class MainActivity extends Activity {
     private static final int REQ_FILE = 1, REQ_LOCATION = 2;
-    private static final String PAPER = "#FAF8F3";
+    private static final String PAPER = "#FDF6EA";
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
     private GeolocationPermissions.Callback geoCallback;

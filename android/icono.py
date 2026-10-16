@@ -1,61 +1,62 @@
-"""Genera el ícono de la app con el gato y el perro del título (adaptativo + PNG clásicos)."""
-import os, sys
-from PIL import Image, ImageDraw
-src = sys.argv[1]
-im = Image.open(src).convert("RGB")
-# borrar la "s" final del título, que queda delante del gato: su relleno encerrado por la tinta + 5 px de contorno
-from collections import deque
-W, H = im.size; p0 = im.load()
-lum = lambda c: 0.299*c[0] + 0.587*c[1] + 0.114*c[2]
-seen = set(); S = set()
-for y0 in range(H):
-    for x0 in range(660, 745):
-        c = p0[x0, y0]
-        if (x0, y0) in seen or lum(c) < 165 or min(c) >= 236: continue
-        comp = []; q = deque([(x0, y0)]); seen.add((x0, y0))
-        while q:
-            x, y = q.popleft(); comp.append((x, y))
-            for nx, ny in ((x+1,y),(x-1,y),(x,y+1),(x,y-1)):
-                if 0 <= nx < W and 0 <= ny < H and (nx, ny) not in seen:
-                    c2 = p0[nx, ny]
-                    if lum(c2) >= 165 and min(c2) < 236: seen.add((nx, ny)); q.append((nx, ny))
-        xs = [x for x, _ in comp]
-        if len(comp) > 400 and min(xs) >= 650 and max(xs) <= 748: S.update(comp)
-for x, y in list(S):
-    for dx in range(-5, 6):
-        for dy in range(-5, 6):
-            if 0 <= x+dx < W and 0 <= y+dy < H: p0[x+dx, y+dy] = (255, 255, 255)
-print("s borrada:", len(S), "px")
-im = im.crop((712, 14, 1000, 246))  # solo los animales
-px = im.load(); fg = Image.new("RGBA", im.size); po = fg.load()
-for y in range(im.height):
-    for x in range(im.width):
-        r, g, b = px[x, y]; a = 255 - min(r, g, b)
-        if a < 10: continue
-        f = a / 255; un = lambda c: max(0, min(255, round((c - 255 * (1 - f)) / f)))
-        po[x, y] = (un(r), un(g), un(b), a)
-fg = fg.crop(fg.getbbox())
-PAPER = (250, 248, 243, 255)
-def place(size, frac):
-    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    s = frac * size / max(fg.size); art = fg.resize((round(fg.width * s), round(fg.height * s)), Image.LANCZOS)
-    canvas.alpha_composite(art, ((size - art.width) // 2, (size - art.height) // 2 + round(size * .02)))
-    return canvas
+"""Ícono de la app a partir del logotipo "Cuatro Patitas" (tarjeta de lino con círculo y huella).
+La huella pasa de verde a rojo bermellón, como un sello hanko. Uso: python icono.py logo.webp"""
+import os, sys, colorsys
+from PIL import Image, ImageDraw, ImageFilter
+src = Image.open(sys.argv[1]).convert("RGB")
+CX, CY, HALF = 535, 515, 380
+art = src.crop((CX - HALF, CY - HALF, CX + HALF, CY + HALF))
+# huella verde → bermellón, conservando la luz y la textura del pigmento
+px = art.load()
+for y in range(art.height):
+    for x in range(art.width):
+        r, g, b = px[x, y]
+        h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+        if 0.2 < h < 0.45 and s > 0.15 and g > r + 12:
+            nr, ng, nb = colorsys.hls_to_rgb(0.018, min(.62, l * 1.02), min(1, s * 1.25 + .1))
+            px[x, y] = (round(nr * 255), round(ng * 255), round(nb * 255))
+# la "tinta" del logo (líneas, letras, huella) se imprime en multiplicar sobre un lino nuevo y limpio
+import random
+lin = (238, 228, 206)
+PAPER = src.crop((CX - 60, CY + 250, CX + 60, CY + 300)).resize((1, 1), Image.LANCZOS).getpixel((0, 0))
+ink = Image.new("RGB", art.size, (255, 255, 255)); pi = ink.load(); pa = art.load()
+for y in range(art.height):
+    for x in range(art.width):
+        c = pa[x, y]
+        if sum(PAPER) - sum(c) < 45: continue  # papel y su trama: fuera
+        if (x - HALF) ** 2 + (y - HALF) ** 2 > 500 ** 2: continue  # esquinas: madera de la foto
+        pi[x, y] = tuple(min(255, round(255 * c[i] / PAPER[i])) for i in range(3))
+S = 1100
+random.seed(4)
+canvas = Image.new("RGB", (S, S), lin); pc = canvas.load()
+for y in range(S):  # trama de lino: hilos finos horizontales y verticales + grano
+    for x in range(S):
+        v = random.randint(-5, 5) + (-4 if y % 7 == 0 else 0) + (-3 if x % 9 == 0 else 0)
+        pc[x, y] = tuple(max(0, min(255, lin[i] + v)) for i in range(3))
+SC = .76
+ink = ink.resize((round(art.width * SC),) * 2, Image.LANCZOS)
+layer = Image.new("RGB", (S, S), (255, 255, 255)); layer.paste(ink, ((S - ink.width) // 2, (S - ink.height) // 2))
+from PIL import ImageChops
+canvas = ImageChops.multiply(canvas, layer)
+canvas.save("icono-completo.png")
 dens = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}
 for d, k in dens.items():
     os.makedirs(f"res/mipmap-{d}", exist_ok=True)
-    place(round(108 * k), .62).save(f"res/mipmap-{d}/ic_launcher_fg.png")  # zona segura del ícono adaptativo
-    n = round(48 * k); legacy = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    ImageDraw.Draw(legacy).ellipse((1, 1, n - 2, n - 2), fill=PAPER, outline=(202, 215, 198, 255), width=max(1, round(k)))
-    legacy.alpha_composite(place(n, .78)); legacy.save(f"res/mipmap-{d}/ic_launcher.png")
-os.makedirs("res/mipmap-anydpi-v26", exist_ok=True)
+    canvas.resize((round(108 * k),) * 2, Image.LANCZOS).save(f"res/mipmap-{d}/ic_launcher_bg.png")
+    n = round(48 * k); big = canvas.crop((150, 150, S - 150, S - 150)).resize((n, n), Image.LANCZOS)
+    m = Image.new("L", (n, n), 0); ImageDraw.Draw(m).rounded_rectangle((0, 0, n - 1, n - 1), radius=round(n * .22), fill=255)
+    out = Image.new("RGBA", (n, n), (0, 0, 0, 0)); out.paste(big, (0, 0), m); out.save(f"res/mipmap-{d}/ic_launcher.png")
+    fg = f"res/mipmap-{d}/ic_launcher_fg.png"
+    if os.path.exists(fg): os.remove(fg)
+os.makedirs("res/drawable", exist_ok=True)
+open("res/drawable/transparente.xml", "w").write('<?xml version="1.0" encoding="utf-8"?>\n<color xmlns:android="http://schemas.android.com/apk/res/android" android:color="#00000000" />\n')
 open("res/mipmap-anydpi-v26/ic_launcher.xml", "w").write('''<?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/paper" />
-    <foreground android:drawable="@mipmap/ic_launcher_fg" />
+    <background android:drawable="@mipmap/ic_launcher_bg" />
+    <foreground android:drawable="@drawable/transparente" />
 </adaptive-icon>
 ''')
-os.makedirs("res/values", exist_ok=True)
-open("res/values/colors.xml", "w").write('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="paper">#FAF8F3</color>\n</resources>\n')
-place(512, .7).save("icono-preview.png")
-print("ok", fg.size)
+# para la web: favicon e ícono al agregar a la pantalla de inicio
+web = canvas.crop((150, 150, S - 150, S - 150)).resize((192, 192), Image.LANCZOS)
+m = Image.new("L", (192, 192), 0); ImageDraw.Draw(m).rounded_rectangle((0, 0, 191, 191), radius=42, fill=255)
+fav = Image.new("RGBA", (192, 192), (0, 0, 0, 0)); fav.paste(web, (0, 0), m); fav.save("../assets/icono.png", optimize=True)
+print("ok", lin)
