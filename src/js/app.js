@@ -34,16 +34,27 @@ const ICONS = {
   cat: '<path d="M5 13.5V4.6l4 3.1h6l4-3.1v8.9c0 3.7-3.1 6-7 6s-7-2.3-7-6z"/><path d="M11 14.6h2l-1 1z"/><path d="M9.3 11.6v.01M14.7 11.6v.01"/>',
   bird: '<path d="M5 14.8c0-5 3.5-8.8 8-8.8 2.2 0 4 1.3 4.6 3.2L20.5 10l-2.8 1.3C17.4 16 14 19 9.5 19 7 19 5 17.3 5 14.8z"/><path d="M14.5 9.6v.01"/>',
   rabbit: '<path d="M9.6 9C8.6 6 8.4 3 9.7 2.8c1.4-.2 1.7 3.2 1.6 5.9M14.4 9c1-3 1.2-6-.1-6.2-1.4-.2-1.7 3.2-1.6 5.9"/><path d="M6.5 14.5c0-3.4 2.5-6 5.5-6s5.5 2.6 5.5 6-2.5 5.5-5.5 5.5-5.5-2.1-5.5-5.5z"/>',
+  vet: '<path d="M9.5 4h5v5.5H20v5h-5.5V20h-5v-5.5H4v-5h5.5z"/>',
+  store: '<path d="M4 9.5 5.5 4h13L20 9.5M4 9.5h16V20H4zM9.5 20v-5h5v5"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  photos: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 4 3.5 2.5-2 4.5 3.5"/>',
 };
 const svg = (name, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.paw}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 /* ---------- navegación en memoria (funciona en GitHub Pages, en un iframe y abierto desde WhatsApp) ---------- */
-const TABS = ['inicio', 'avisos', 'publicar', 'cuaderno', 'guardados'];
+const TABS = ['inicio', 'avisos', 'agregar', 'perfil'];
+// enlaces de versiones anteriores (Publicar, Cuaderno, Guardados) y de hojas compartidas (#/aviso/id, #/mascota/id, #/post/id)
+const ALIAS = { publicar: 'agregar', cuaderno: 'avisos', guardados: 'perfil', cuenta: 'perfil' };
+const SHEETS = { aviso: 'report', mascota: 'pet', post: 'post' };
 const parse = (h = location.hash) => {
   const [path, qs = ''] = h.replace(/^#\/?/, '').split('?');
-  const [tab, id] = path.split('/');
-  return { tab: TABS.includes(tab) ? tab : (tab === 'aviso' || tab === 'mascota' ? 'inicio' : 'inicio'), open: tab === 'aviso' || tab === 'mascota' ? { kind: tab, id } : null, query: Object.fromEntries(new URLSearchParams(qs)) };
+  const [raw, id] = path.split('/');
+  const tab = ALIAS[raw] || raw;
+  const query = Object.fromEntries(new URLSearchParams(qs));
+  if (raw === 'publicar' && query.pet) query.aviso = query.pet;
+  const open = SHEETS[raw] ? { kind: SHEETS[raw], id } : raw === 'cuenta' ? { kind: 'cuenta' } : null;
+  return { tab: TABS.includes(tab) ? tab : 'inicio', open, query };
 };
 const route = ref(parse());
 const go = (path) => {
@@ -51,7 +62,7 @@ const go = (path) => {
   try { history.replaceState(null, '', '#/' + path); } catch (e) {}
   window.scrollTo({ top: 0 });
 };
-addEventListener('hashchange', () => { route.value = parse(); });
+addEventListener('hashchange', () => { route.value = parse(); if (route.value.open) openSheet(route.value.open.kind, route.value.open.id); else closeSheet(); });
 
 /* ---------- estado de interfaz ---------- */
 const ui = reactive({ sheet: null, toast: '', welcome: !state.user.welcomed });
@@ -67,14 +78,47 @@ window.__patitasBack = () => {
   if (route.value.tab !== 'inicio') { go('inicio'); return true; }
   return false;
 };
-if (route.value.open) openSheet(route.value.open.kind === 'aviso' ? 'report' : 'pet', route.value.open.id);
+if (route.value.open) openSheet(route.value.open.kind, route.value.open.id);
 
-/* guardados: solo en este teléfono */
+/* guardados: solo en este teléfono (avisos, mascotas y publicaciones) */
 if (!Array.isArray(state.user.saved)) state.user.saved = [];
 const isSaved = (kind, id) => state.user.saved.includes(kind + ':' + id);
 const toggleSave = (kind, id) => {
   const k = kind + ':' + id, i = state.user.saved.indexOf(k);
-  if (i > -1) state.user.saved.splice(i, 1); else { state.user.saved.unshift(k); toast('Guardado en tu cuaderno'); }
+  if (i > -1) state.user.saved.splice(i, 1); else { state.user.saved.unshift(k); toast('Guardado en tu perfil'); }
+};
+
+/* ---------- Inicio: la red social del barrio ---------- */
+const feed = reactive({ tab: 'todo', q: '', searching: false });
+const HASHTAG = /(#[\p{L}\p{N}_]+)/u;
+const tagsOf = text => (String(text || '').match(/#[\p{L}\p{N}_]+/gu) || []).map(t => t.toLowerCase());
+// el texto de una publicación en trozos, para que cada #etiqueta sea un botón (sin v-html)
+const pieces = text => String(text || '').split(HASHTAG).filter(Boolean).map(t => ({ t, tag: HASHTAG.test(t) }));
+const searchTag = tag => { Object.assign(feed, { q: tag, searching: true, tab: 'todo' }); closeSheet(); go('inicio'); };
+const petOf = post => (post && post.petId ? state.pets.find(p => p.id === post.petId) : null);
+const petAvatar = post => { const pet = petOf(post); return (pet && pet.photo) || post.petPhoto || post.photo; };
+// fotos del álbum de una mascota: sus publicaciones (la más nueva primero) y su foto de perfil
+const albumOf = pet => {
+  const shots = state.posts.filter(x => x.petId === pet.id).sort((a, b) => b.date - a.date).map(x => x.photo);
+  return [...new Set(pet.photo ? [...shots, pet.photo] : shots)];
+};
+const me = {
+  name: () => state.user.name || (status.user && status.user.name) || '',
+  avatar: () => state.user.avatar || (status.user && status.user.avatar) || '',
+};
+
+/* patrocinios: los de config.js o, si no hay, espacios disponibles */
+const CFG = window.HUELLAS_CONFIG || {};
+const SPONSOR_SLOTS = [
+  { kind: 'Veterinaria', name: 'Tu veterinaria aquí', text: 'Consultas, vacunas y emergencias para las mascotas del barrio.', icon: 'vet', slot: true },
+  { kind: 'Alimento y accesorios', name: 'Tu tienda aquí', text: 'Alimento, arena, juguetes y envíos a domicilio.', icon: 'store', slot: true },
+  { kind: 'Servicios', name: 'Tu negocio aquí', text: 'Peluquería, guardería, paseos o adiestramiento.', icon: 'spark', slot: true },
+];
+const SPONSORS = (CFG.sponsors && CFG.sponsors.length) ? CFG.sponsors : SPONSOR_SLOTS;
+const sponsorHref = s => {
+  if (s.slot) return CFG.adsWhatsApp ? `https://wa.me/${CFG.adsWhatsApp}?text=${encodeURIComponent(`Hola, quiero anunciar mi negocio en ${BRAND}`)}` : null;
+  if (s.whatsapp) return `https://wa.me/${s.whatsapp}?text=${encodeURIComponent(`Hola, los vi en ${BRAND}`)}`;
+  return s.url || null;
 };
 
 // en el APK o abierto como archivo, el enlace compartido apunta a la web publicada
@@ -165,6 +209,8 @@ const app = createApp({
       <div class="sheet-bg" @click="closeSheet"></div>
       <s-report v-if="ui.sheet.kind==='report'" :id="ui.sheet.id" />
       <s-pet v-else-if="ui.sheet.kind==='pet'" :id="ui.sheet.id" />
+      <s-post v-else-if="ui.sheet.kind==='post'" :id="ui.sheet.id" />
+      <s-newpet v-else-if="ui.sheet.kind==='newpet'" />
       <s-cuenta v-else-if="ui.sheet.kind==='cuenta'" />
     </template>
     <welcome v-if="ui.welcome" @done="finishWelcome" />
@@ -197,8 +243,8 @@ app.component('report-row', {
 /* ---------- barra superior: marca (o el título manuscrito de Gemini cuando exista) ---------- */
 app.component('top-bar', {
   setup() {
-    const openAccount = () => openSheet('cuenta');
-    return { M, status, openAccount, go };
+    const avatar = computed(me.avatar), initial = computed(() => me.name().charAt(0).toUpperCase());
+    return { M, status, avatar, initial, go };
   },
   template: `
     <header class="top">
@@ -207,21 +253,20 @@ app.component('top-bar', {
       </a>
       <div class="top__end">
         <div class="place"><ico name="pin" /><div>Santa Cruz<small><span v-if="status.online" class="live"></span>{{ status.online ? 'en vivo' : 'este teléfono' }}</small></div></div>
-        <button class="avatar-btn" @click="openAccount" :aria-label="status.user ? 'Mi cuenta' : 'Entrar'">
-          <template v-if="status.user">{{ status.user.name.charAt(0).toUpperCase() }}</template><ico v-else name="user" />
+        <button class="avatar-btn" @click="go('perfil')" aria-label="Mi perfil">
+          <img v-if="avatar" :src="M(avatar)" alt=""><template v-else-if="initial">{{ initial }}</template><ico v-else name="user" />
         </button>
       </div>
     </header>`,
 });
 app.component('bottom-nav', {
-  setup: () => ({ route, go }),
+  setup: () => ({ route, go, M, avatar: computed(me.avatar) }),
   template: `
     <nav class="nav" aria-label="Secciones">
       <a href="#/inicio" :class="{on:route.tab==='inicio'}" @click.prevent="go('inicio')"><ico name="home" />Inicio</a>
       <a href="#/avisos" :class="{on:route.tab==='avisos'}" @click.prevent="go('avisos')"><ico name="pin" />Avisos</a>
-      <a href="#/publicar" class="plus" :class="{on:route.tab==='publicar'}" @click.prevent="go('publicar')"><span class="plus"><ico name="plus" /></span>Publicar</a>
-      <a href="#/cuaderno" :class="{on:route.tab==='cuaderno'}" @click.prevent="go('cuaderno')"><ico name="paw" />Cuaderno</a>
-      <a href="#/guardados" :class="{on:route.tab==='guardados'}" @click.prevent="go('guardados')"><ico name="bookmark" />Guardados</a>
+      <a href="#/agregar" class="plus" :class="{on:route.tab==='agregar'}" @click.prevent="go('agregar')"><span class="plus"><ico name="plus" /></span>Agregar</a>
+      <a href="#/perfil" :class="{on:route.tab==='perfil'}" @click.prevent="go('perfil')"><img v-if="avatar" class="nav__me" :src="M(avatar)" alt=""><ico v-else name="user" />Perfil</a>
     </nav>`,
 });
 
@@ -260,62 +305,102 @@ app.component('welcome', {
     </div>`,
 });
 
-/* ===================== INICIO ===================== */
+/* ===================== INICIO: la red social del barrio ===================== */
+app.component('sponsor-row', {
+  setup: () => ({ SPONSORS, sponsorHref, adClick: () => toast('Muy pronto podrás anunciar tu negocio aquí') }),
+  template: `
+    <section class="ads" aria-label="Patrocinado">
+      <div class="ads__head"><span class="eyebrow">Patrocinado · Aliados del barrio</span></div>
+      <div class="ads__row">
+        <component v-for="s in SPONSORS" :key="s.name" :is="sponsorHref(s) ? 'a' : 'button'" class="ad" :class="{'ad--slot': s.slot}"
+          v-bind="sponsorHref(s) ? { href: sponsorHref(s), target: '_blank', rel: 'noopener sponsored' } : { type: 'button' }"
+          @click="!sponsorHref(s) && adClick()">
+          <span class="ad__img"><img v-if="s.photo" :src="s.photo" alt=""><ico v-else :name="s.icon || 'store'" /></span>
+          <span class="ad__kind">{{ s.kind }}</span>
+          <strong>{{ s.name }}</strong>
+          <span class="ad__text">{{ s.text }}</span>
+          <span class="ad__cta">{{ s.slot ? 'Anunciar aquí' : (s.whatsapp ? 'Escribir' : 'Ver más') }}<ico name="arrow" /></span>
+        </component>
+      </div>
+    </section>`,
+});
+
 app.component('v-inicio', {
   setup() {
-    const recent = computed(() => [...state.reports].filter(r => r.type !== 'reunido').sort((a, b) => b.date - a.date).slice(0, 4));
-    const story = computed(() => state.reports.find(r => r.type === 'reunido'));
-    const active = computed(() => state.reports.filter(r => r.type !== 'reunido').length);
-    return { recent, story, active, state, go, M, openSheet, timeAgo };
+    const followed = computed(() => state.user.followed || []);
+    const posts = computed(() => {
+      const q = feed.q.trim().toLowerCase();
+      let list = state.posts.filter(p => !q || (q.startsWith('#')
+        ? tagsOf(p.text).includes(q)
+        : `${p.text} ${p.petName} ${p.author} ${p.zone}`.toLowerCase().includes(q)));
+      if (feed.tab === 'siguiendo') list = list.filter(p => p.petId && followed.value.includes(p.petId));
+      // "Para ti": lo que más gusta, lo reciente y lo de tu barrio primero
+      const score = p => (p.likes + 1) / Math.pow((Date.now() - p.date) / 3600e3 + 2, 0.6) * (state.user.zone && p.zone === state.user.zone ? 1.5 : 1);
+      return feed.tab === 'parati' ? list.sort((a, b) => score(b) - score(a)) : list.sort((a, b) => b.date - a.date);
+    });
+    // cuadrícula: cada seis fotos una grande, una vez a la izquierda y otra a la derecha; los patrocinios después de las primeras seis
+    const tiles = computed(() => {
+      const out = posts.value.map((p, i) => ({ key: p.id, p, cls: i % 6 ? '' : (Math.floor(i / 6) % 2 ? 'tile--big tile--r' : 'tile--big') }));
+      if (out.length && !feed.q && feed.tab !== 'siguiendo') out.splice(Math.min(6, out.length), 0, { key: 'ads' });
+      return out;
+    });
+    const lost = computed(() => state.reports.filter(r => r.type === 'perdido').sort((a, b) => b.date - a.date).slice(0, 12));
+    const search = ref(null);
+    const toggleSearch = () => {
+      feed.searching = !feed.searching;
+      if (feed.searching) nextTick(() => search.value && search.value.focus()); else feed.q = '';
+    };
+    const tabs = [['todo', 'Todo'], ['parati', 'Para ti'], ['siguiendo', 'Siguiendo']];
+    return { feed, posts, tiles, lost, tabs, search, toggleSearch, go, M, openSheet };
   },
   template: `
-    <main class="view">
-      <div class="hello stagger">
-        <div>
-          <span class="eyebrow">Qué bueno encontrarnos</span>
-          <h1>Un barrio. Muchas pequeñas <span class="sketch">historias.</span></h1>
-          <p>Mira a tu alrededor. Quizá alguien necesita volver a casa.</p>
+    <main class="view view--feed">
+      <div class="feedbar">
+        <div class="feedtabs" role="tablist" aria-label="Publicaciones">
+          <button v-for="t in tabs" :key="t[0]" role="tab" :aria-selected="feed.tab===t[0]" :class="{on:feed.tab===t[0]}" @click="feed.tab=t[0]">{{ t[1] }}</button>
         </div>
+        <button class="feedbar__search" :class="{on:feed.searching}" @click="toggleSearch" :aria-label="feed.searching ? 'Cerrar búsqueda' : 'Buscar'"><ico :name="feed.searching ? 'close' : 'search'" /></button>
       </div>
+      <label v-if="feed.searching" class="search"><ico name="search" /><input ref="search" v-model="feed.q" placeholder="#etiqueta, mascota o barrio" aria-label="Buscar publicaciones"></label>
 
-      <nav class="directory stagger" aria-label="Qué puedes hacer">
-        <a href="#/avisos" @click.prevent="go('avisos')"><span class="n">01</span><div><strong>Mirar en el barrio</strong><span>{{ active }} avisos activos en Santa Cruz</span></div><ico name="arrow" /></a>
-        <a href="#/cuaderno" @click.prevent="go('cuaderno')"><span class="n">02</span><div><strong>Abrir el cuaderno</strong><span>Fotografías y pequeños días</span></div><ico name="arrow" /></a>
-        <a href="#/guardados" @click.prevent="go('guardados')"><span class="n">03</span><div><strong>Volver a mis guardados</strong><span>{{ state.user.saved.length }} páginas guardadas</span></div><ico name="arrow" /></a>
-      </nav>
+      <section v-if="lost.length && !feed.q" class="lostrow" aria-label="Se buscan en el barrio">
+        <div class="lostrow__head"><span class="eyebrow">Se buscan en el barrio</span><a class="link" href="#/avisos" @click.prevent="go('avisos')">Ver avisos</a></div>
+        <div class="lostrow__list">
+          <button v-for="r in lost" :key="r.id" class="lost" @click="openSheet('report', r.id)"><span class="lost__ring"><media :item="r" /></span><span class="lost__name">{{ r.name }}</span></button>
+        </div>
+      </section>
 
-      <div class="poster-card">
-        <img :src="M('assets/mascota-banner.webp')" alt="Una gata calicó y un perro blanco con sombreros de paja y pañoletas verdes" width="640" height="447" loading="lazy">
-        <p class="wordmark wordmark--big">Un poquito de compañía<span class="wordmark__dot">.</span></p>
+      <div v-if="tiles.length" class="square">
+        <template v-for="t in tiles" :key="t.key">
+          <sponsor-row v-if="t.key==='ads'" class="square__ads" />
+          <button v-else class="tile" :class="t.cls" @click="openSheet('post', t.p.id)" :aria-label="'Foto de ' + (t.p.petName || 'una mascota') + (t.p.author ? ', de ' + t.p.author : '')">
+            <img :src="M(t.p.photo)" alt="" loading="lazy" decoding="async">
+            <span v-if="t.p.likes" class="tile__likes"><ico name="heart" />{{ t.p.likes }}</span>
+          </button>
+        </template>
       </div>
-
-      <div class="heading"><div><span class="eyebrow">Una mano cerca</span><h2>Avisos recientes</h2></div><a class="link" href="#/avisos" @click.prevent="go('avisos')">Ver todos</a></div>
-      <div class="stagger"><report-row v-for="r in recent" :key="r.id" :r="r" /></div>
-
-      <template v-if="story">
-        <div class="heading"><div><span class="eyebrow">Del cuaderno</span><h2>Una historia con final feliz</h2></div><span class="hanko" aria-hidden="true"><ico name="paw" /></span></div>
-        <button class="story" @click="openSheet('report', story.id)">
-          <img :src="M(story.photo || 'assets/engawa.webp')" :alt="story.name" loading="lazy">
-          <h3>{{ story.name }} volvió a casa.</h3>
-          <p>{{ story.desc }}</p>
-        </button>
-      </template>
-
-      <hr class="rule">
-      <p class="hand">Las cosas pequeñas también cuentan.</p>
+      <div v-else class="empty">
+        <img class="empty__wide" :src="M('assets/mascota-banner.webp')" alt="" width="320" height="223">
+        <template v-if="feed.q"><h2>Nada con «{{ feed.q }}»</h2><p>Prueba con otra etiqueta o el nombre de un barrio.</p></template>
+        <template v-else-if="feed.tab==='siguiendo'"><h2>Todavía no sigues a nadie</h2><p>Toca «Seguir» en el álbum de una mascota y sus fotos aparecerán aquí.</p><button class="btn" @click="feed.tab='todo'">Ver todas las fotos</button></template>
+        <template v-else><h2>El barrio está tranquilo</h2><p>Comparte la primera foto de tu mascota.</p><button class="btn" @click="go('agregar?tipo=post')"><ico name="camera" />Agregar publicación</button></template>
+      </div>
+      <sponsor-row v-if="!tiles.length && !feed.q" />
+      <p class="hand feed__end" v-if="posts.length">Las cosas pequeñas también cuentan.</p>
     </main>`,
 });
 
-/* ===================== AVISOS ===================== */
+/* ===================== AVISOS: cuaderno de avisos y mapa ===================== */
 app.component('v-avisos', {
   name: 'v-avisos',
   setup() {
     const el = ref(null), sel = ref(null);
-    const f = reactive({ type: 'todos', q: '', view: 'mapa' });
+    const f = reactive({ type: 'todos', q: '', view: 'cuaderno' });
     const list = computed(() => state.reports
       .filter(r => f.type === 'todos' || r.type === f.type)
       .filter(r => !f.q || `${r.name} ${r.breed} ${r.zone} ${r.color}`.toLowerCase().includes(f.q.toLowerCase()))
       .sort((a, b) => b.date - a.date));
+    const count = t => t === 'todos' ? state.reports.length : state.reports.filter(r => r.type === t).length;
     const selected = computed(() => state.reports.find(r => r.id === sel.value));
     let map, layer, ready = false;
     const draw = () => {
@@ -323,6 +408,7 @@ app.component('v-avisos', {
       layer.clearLayers();
       list.value.forEach(r => layer.addLayer(L.marker([r.lat, r.lng], { icon: pinIcon(r) }).on('click', () => { sel.value = r.id; })));
     };
+    // el mapa se arma la primera vez que se abre su pestaña (Leaflet necesita ver el tamaño de la caja)
     const init = () => {
       if (ready || !el.value) return; ready = true;
       map = makeMap(el.value, { zoom: 13 });
@@ -341,14 +427,14 @@ app.component('v-avisos', {
         toast(`${near} avisos a menos de 5 km`);
       }, () => toast('No pudimos obtener tu ubicación'));
     };
-    onMounted(() => nextTick(init));
     watch(list, draw);
-    watch(() => f.view, v => { if (v === 'mapa') nextTick(() => map && map.invalidateSize()); });
+    watch(() => f.view, v => { if (v === 'mapa') nextTick(() => { init(); map && map.invalidateSize(); }); else sel.value = null; });
     onBeforeUnmount(() => map && map.remove());
     const filters = [['todos', 'Todos', '#3a2418'], ...Object.entries(TYPES).map(([k, t]) => [k, t.short, t.dot])];
     // al abrir el perfil completo se cierra la tarjetita del mapa
     const openFromPeek = () => { const id = sel.value; sel.value = null; openSheet('report', id); };
-    return { el, f, list, sel, selected, filters, locate, openSheet, openFromPeek, timeAgo, M };
+    const like = r => actions.toggleLike(r);
+    return { el, f, list, count, sel, selected, filters, locate, openSheet, openFromPeek, like, isSaved, toggleSave, share, waLink, timeAgo, TYPES, BRAND, M };
   },
   template: `
     <main class="view">
@@ -356,20 +442,41 @@ app.component('v-avisos', {
         <img class="view-head__art" :src="M('assets/head-avisos.webp')" alt="" width="108" height="118">
         <span class="badge"><span class="badge__ico"><ico name="pin" /></span>01 · EL BARRIO</span>
         <h1>Avisos del <span class="sketch">barrio.</span></h1>
-        <p>Perdidos, vistos y encontrados en Santa Cruz. Ayudemos a reconocerlos.</p>
+        <p>Perdidos, vistos, encontrados y los que ya volvieron a casa en Santa Cruz.</p>
       </header>
-      <div class="filters" role="tablist">
-        <button v-for="x in filters" :key="x[0]" class="chip" :class="{on:f.type===x[0]}" @click="f.type=x[0]" role="tab" :aria-selected="f.type===x[0]"><i class="dot" :style="{'--c':x[2]}"></i>{{ x[1] }}</button>
+      <div class="filters" role="tablist" aria-label="Categoría">
+        <button v-for="x in filters" :key="x[0]" class="chip" :class="{on:f.type===x[0]}" @click="f.type=x[0]" role="tab" :aria-selected="f.type===x[0]"><i class="dot" :style="{'--c':x[2]}"></i>{{ x[1] }}<span class="chip__n">{{ count(x[0]) }}</span></button>
       </div>
       <label class="search"><ico name="search" /><input v-model="f.q" placeholder="Nombre, detalle o barrio" aria-label="Buscar avisos"></label>
       <div class="seg">
-        <button :class="{on:f.view==='mapa'}" @click="f.view='mapa'"><ico name="map" />Mapa</button>
-        <button :class="{on:f.view==='lista'}" @click="f.view='lista'"><ico name="list" />Lista ({{ list.length }})</button>
+        <button :class="{on:f.view==='cuaderno'}" @click="f.view='cuaderno'" :aria-pressed="f.view==='cuaderno'"><ico name="book" />Cuaderno ({{ list.length }})</button>
+        <button :class="{on:f.view==='mapa'}" @click="f.view='mapa'" :aria-pressed="f.view==='mapa'"><ico name="map" />Mapa</button>
+      </div>
+
+      <div v-show="f.view==='cuaderno'" class="notebook">
+        <article v-for="r in list" :key="r.id" class="post">
+          <div class="post__head">
+            <span class="report__img"><media :item="r" /></span>
+            <div><strong>{{ r.name }}</strong><small>{{ r.zone }} · {{ timeAgo(r.date) }}</small></div>
+            <status-pill :type="r.type" />
+          </div>
+          <button class="post__photo" @click="openSheet('report', r.id)" :aria-label="'Abrir el aviso de ' + r.name"><media :item="r" /></button>
+          <div class="post__bar">
+            <button :class="{on:r.liked}" @click="like(r)" :aria-pressed="r.liked" aria-label="Me gusta"><ico name="heart" />{{ r.likes }}</button>
+            <button @click="openSheet('report', r.id)"><ico name="chat" />{{ r.comments.length ? r.comments.length : 'Comentar' }}</button>
+            <a v-if="r.type!=='reunido' && r.contact" :href="waLink(r)" target="_blank" rel="noopener"><ico name="whatsapp" />Escribir</a>
+            <button @click="share(r.name + ' en ' + BRAND, '#/aviso/' + r.id)" aria-label="Compartir"><ico name="share" /></button>
+            <button :class="{on:isSaved('report', r.id)}" @click="toggleSave('report', r.id)" :aria-label="isSaved('report', r.id) ? 'Quitar de guardados' : 'Guardar'"><ico name="bookmark" /></button>
+          </div>
+          <p>{{ r.desc }}</p>
+          <p v-if="r.reward && r.type==='perdido'" class="post__reward">Recompensa <b>{{ r.reward }}</b></p>
+        </article>
+        <div v-if="!list.length" class="empty"><h2>Nada por aquí</h2><p>No hay avisos con ese filtro.</p></div>
       </div>
 
       <div class="mapbox" v-show="f.view==='mapa'">
         <div class="map" ref="el"></div>
-        <span class="map__tag">SANTA CRUZ DE LA SIERRA</span>
+        <span class="map__tag">{{ f.type==='todos' ? 'SANTA CRUZ DE LA SIERRA' : TYPES[f.type].short.toUpperCase() + ' · ' + list.length }}</span>
         <button class="btn btn--light btn--sm map__me" @click="locate"><ico name="locate" />Cerca de mí</button>
         <button v-if="selected" class="peek" @click="openFromPeek">
           <span class="report__img"><media :item="selected" /></span>
@@ -377,24 +484,50 @@ app.component('v-avisos', {
           <ico name="arrow" />
         </button>
       </div>
-      <p v-show="f.view==='mapa'" class="map-note">Toca un pin para ver el aviso. Las ubicaciones son aproximadas por privacidad.</p>
-
-      <div v-show="f.view==='lista'" class="stagger">
-        <report-row v-for="r in list" :key="r.id" :r="r" />
-        <div v-if="!list.length" class="empty"><h2>Nada por aquí</h2><p>No hay avisos con ese filtro.</p></div>
-      </div>
+      <p v-show="f.view==='mapa'" class="map-note">Elige arriba qué ver: perdidos, vistos o todos. Toca un pin para abrir el aviso. Las ubicaciones son aproximadas por privacidad.</p>
     </main>`,
 });
 
-/* ===================== PUBLICAR ===================== */
-app.component('v-publicar', {
+/* ===================== AGREGAR: aviso o publicación ===================== */
+app.component('v-agregar', {
   setup() {
-    const pick = ref(null), err = ref(''), sending = ref(false);
     const q = route.value.query;
+    // ?tipo=aviso|post · ?aviso=<mascota> (avisar que se perdió) · ?post=<mascota> (foto para su álbum)
+    const kind = ref(q.aviso || q.tipo === 'aviso' ? 'aviso' : q.post || q.tipo === 'post' ? 'post' : null);
+    const choices = [
+      ['aviso', 'megaphone', 'Aviso', 'Una mascota perdida o vista. Aparece en el mapa.'],
+      ['post', 'camera', 'Publicación', 'Una foto de tu mascota para Inicio y su álbum.'],
+    ];
+    return { kind, choices, q, M };
+  },
+  template: `
+    <main class="view">
+      <header class="view-head view-head--art">
+        <img class="view-head__art view-head__art--wag" :src="M('assets/head-publicar.webp')" alt="" width="108" height="120">
+        <span class="badge"><span class="badge__ico"><ico name="plus" /></span>02 · AGREGAR</span>
+        <h1>¿Qué quieres <span class="sketch">compartir?</span></h1>
+        <p>Un aviso para que el barrio ayude, o una foto para alegrar Inicio.</p>
+      </header>
+      <div class="choice" role="radiogroup" aria-label="Qué agregar">
+        <button v-for="c in choices" :key="c[0]" type="button" role="radio" :aria-checked="kind===c[0]" :class="{on:kind===c[0]}" @click="kind=c[0]">
+          <span class="choice__ico"><ico :name="c[1]" /></span><strong>{{ c[2] }}</strong><span>{{ c[3] }}</span>
+        </button>
+      </div>
+      <f-aviso v-if="kind==='aviso'" :pet-id="q.aviso" />
+      <f-post v-else-if="kind==='post'" :pet-id="q.post" />
+      <p v-else class="hand choice__hint">Elige una opción para empezar.</p>
+    </main>`,
+});
+
+app.component('f-aviso', {
+  props: ['petId'],
+  setup(props) {
+    const pick = ref(null), err = ref(''), sending = ref(false);
     const form = reactive({ type: 'perdido', species: 'perro', name: '', breed: '', color: '', zone: 'Centro', desc: '', reward: '', contact: '', photo: null, lat: CENTER[0], lng: CENTER[1] });
-    if (q.pet) {
-      const p = state.pets.find(x => x.id === q.pet);
-      if (p) Object.assign(form, { name: p.name, species: p.species, breed: p.breed, zone: p.zone, desc: p.bio, photo: p.photo || null, petId: p.id, lat: ZONES[p.zone][0], lng: ZONES[p.zone][1] });
+    if (props.petId) {
+      const p = state.pets.find(x => x.id === props.petId);
+      if (p) Object.assign(form, { name: p.name, species: p.species, breed: p.breed, zone: ZONES[p.zone] ? p.zone : 'Centro', desc: p.bio, photo: p.photo || null, petId: p.id });
+      form.lat = ZONES[form.zone][0]; form.lng = ZONES[form.zone][1];
     }
     const types = [['perdido', 'megaphone', 'Se perdió'], ['visto', 'eye', 'Lo vi'], ['encontrado', 'home', 'Lo encontré']];
     let map, marker;
@@ -422,135 +555,187 @@ app.component('v-publicar', {
       } catch (e) { err.value = 'No se pudo publicar: ' + (e.message || 'revisa tu conexión'); }
       finally { sending.value = false; }
     };
-    return { pick, form, types, onFile, submit, err, sending, SPECIES, ZONES, TYPES, statusStyle, go, openSheet, M };
+    return { pick, form, types, onFile, submit, err, sending, SPECIES, ZONES, statusStyle, M };
   },
   template: `
-    <main class="view">
-      <header class="view-head view-head--art">
-        <img class="view-head__art view-head__art--wag" :src="M('assets/head-publicar.webp')" alt="" width="108" height="120">
-        <span class="badge"><span class="badge__ico"><ico name="plus" /></span>03 · PARTICIPAR</span>
-        <h1>Un gesto <span class="sketch">pequeño.</span></h1>
-        <p>Puede ser el comienzo de un reencuentro. Toma menos de un minuto.</p>
-      </header>
-      <form class="form" @submit.prevent="submit" novalidate>
-        <div class="field"><span>¿Qué pasó?</span>
-          <div class="types">
-            <button v-for="t in types" :key="t[0]" type="button" :class="{on:form.type===t[0]}" :style="statusStyle(t[0])" @click="form.type=t[0]"><ico :name="t[1]" />{{ t[2] }}</button>
-          </div>
+    <form class="form" @submit.prevent="submit" novalidate>
+      <div class="field"><span>¿Qué pasó?</span>
+        <div class="types">
+          <button v-for="t in types" :key="t[0]" type="button" :class="{on:form.type===t[0]}" :style="statusStyle(t[0])" @click="form.type=t[0]"><ico :name="t[1]" />{{ t[2] }}</button>
         </div>
-        <label class="photo-drop">
-          <img v-if="form.photo" :src="form.photo" alt="Foto elegida">
-          <template v-else><ico name="camera" /><strong>Agrega una foto clara</strong><span>De cuerpo entero y con buena luz</span></template>
-          <input type="file" accept="image/*" @change="onFile" aria-label="Elegir foto">
-        </label>
-        <div class="field"><span>Especie</span>
-          <div class="species"><button v-for="(icon,k) in SPECIES" :key="k" type="button" class="chip" :class="{on:form.species===k}" @click="form.species=k"><ico :name="icon" />{{ k }}</button></div>
-        </div>
-        <div class="field"><label for="p-name">{{ form.type==='perdido' ? 'Nombre de tu mascota' : 'Título corto' }}</label><input id="p-name" class="input" v-model="form.name" :placeholder="form.type==='perdido' ? 'Ej. Toby' : 'Ej. Perrito café con collar'"></div>
-        <div class="grid2">
-          <div class="field"><label for="p-breed">Raza</label><input id="p-breed" class="input" v-model="form.breed" placeholder="Mestizo"></div>
-          <div class="field"><label for="p-color">Color y señas</label><input id="p-color" class="input" v-model="form.color" placeholder="Collar rojo"></div>
-        </div>
-        <div class="field"><label for="p-desc">Cuéntanos un poco más</label><textarea id="p-desc" class="input" v-model="form.desc" placeholder="¿Cómo es su carácter? ¿Hacia dónde iba?"></textarea></div>
-        <div class="field"><label for="p-zone">Barrio <small>· luego ajusta el punto en el mapa</small></label><select id="p-zone" class="input" v-model="form.zone"><option v-for="(_,z) in ZONES" :key="z">{{ z }}</option></select></div>
-        <div class="pickmap" ref="pick"></div>
-        <div class="grid2">
-          <div class="field" v-if="form.type==='perdido'"><label for="p-reward">Recompensa <small>opcional</small></label><input id="p-reward" class="input" v-model="form.reward" placeholder="Bs 300"></div>
-          <div class="field" :style="form.type!=='perdido' ? 'grid-column:1/-1' : ''"><label for="p-wa">Tu WhatsApp</label><input id="p-wa" class="input" v-model="form.contact" inputmode="tel" placeholder="7XXXXXXX"></div>
-        </div>
-        <p v-if="err" class="error" role="alert">{{ err }}</p>
-        <button class="btn btn--green btn--full" :disabled="sending">{{ sending ? 'Publicando…' : 'Publicar en el mapa' }}<ico name="arrow" /></button>
-        <p class="hand" style="text-align:center">Gracias por mirar a tu alrededor.</p>
-      </form>
-    </main>`,
+      </div>
+      <label class="photo-drop">
+        <img v-if="form.photo" :src="M(form.photo)" alt="Foto elegida">
+        <template v-else><ico name="camera" /><strong>Agrega una foto clara</strong><span>De cuerpo entero y con buena luz</span></template>
+        <input type="file" accept="image/*" @change="onFile" aria-label="Elegir foto">
+      </label>
+      <div class="field"><span>Especie</span>
+        <div class="species"><button v-for="(icon,k) in SPECIES" :key="k" type="button" class="chip" :class="{on:form.species===k}" @click="form.species=k"><ico :name="icon" />{{ k }}</button></div>
+      </div>
+      <div class="field"><label for="p-name">{{ form.type==='perdido' ? 'Nombre de tu mascota' : 'Título corto' }}</label><input id="p-name" class="input" v-model="form.name" :placeholder="form.type==='perdido' ? 'Ej. Toby' : 'Ej. Perrito café con collar'"></div>
+      <div class="grid2">
+        <div class="field"><label for="p-breed">Raza</label><input id="p-breed" class="input" v-model="form.breed" placeholder="Mestizo"></div>
+        <div class="field"><label for="p-color">Color y señas</label><input id="p-color" class="input" v-model="form.color" placeholder="Collar rojo"></div>
+      </div>
+      <div class="field"><label for="p-desc">Cuéntanos un poco más</label><textarea id="p-desc" class="input" v-model="form.desc" placeholder="¿Cómo es su carácter? ¿Hacia dónde iba?"></textarea></div>
+      <div class="field"><label for="p-zone">Barrio <small>· luego ajusta el punto en el mapa</small></label><select id="p-zone" class="input" v-model="form.zone"><option v-for="(_,z) in ZONES" :key="z">{{ z }}</option></select></div>
+      <div class="pickmap" ref="pick"></div>
+      <div class="grid2">
+        <div class="field" v-if="form.type==='perdido'"><label for="p-reward">Recompensa <small>opcional</small></label><input id="p-reward" class="input" v-model="form.reward" placeholder="Bs 300"></div>
+        <div class="field" :style="form.type!=='perdido' ? 'grid-column:1/-1' : ''"><label for="p-wa">Tu WhatsApp</label><input id="p-wa" class="input" v-model="form.contact" inputmode="tel" placeholder="7XXXXXXX"></div>
+      </div>
+      <p v-if="err" class="error" role="alert">{{ err }}</p>
+      <button class="btn btn--green btn--full" :disabled="sending">{{ sending ? 'Publicando…' : 'Publicar aviso en el mapa' }}<ico name="arrow" /></button>
+      <p class="hand" style="text-align:center">Gracias por mirar a tu alrededor.</p>
+    </form>`,
 });
 
-/* ===================== CUADERNO ===================== */
-app.component('v-cuaderno', {
-  setup() {
-    const tab = ref('todo');
-    const entries = computed(() => {
-      const pets = state.pets.map(p => ({ kind: 'pet', id: p.id, item: p, date: 0 }));
-      const happy = state.reports.filter(r => r.type === 'reunido').map(r => ({ kind: 'report', id: r.id, item: r, date: r.date }));
-      if (tab.value === 'mascotas') return pets;
-      if (tab.value === 'reencuentros') return happy;
-      const out = []; pets.forEach((p, i) => { out.push(p); if (happy[i]) out.push(happy[i]); });
-      return out;
-    });
-    const like = async e => { if (e.kind === 'pet') await actions.toggleFollow(e.item); else await actions.toggleLike(e.item); };
-    const liked = e => e.kind === 'pet' ? (state.user.followed || []).includes(e.id) : e.item.liked;
-    return { tab, entries, like, liked, isSaved, toggleSave, openSheet, share, accentOf, timeAgo, BRAND, M };
+app.component('f-post', {
+  props: ['petId'],
+  setup(props) {
+    const err = ref(''), sending = ref(false);
+    const mine = computed(() => state.pets.filter(p => p.mine));
+    const first = props.petId && state.pets.some(p => p.id === props.petId) ? props.petId : (mine.value[0] ? mine.value[0].id : '');
+    const form = reactive({ photo: null, petId: first, petName: '', text: '', author: me.name() });
+    const needsName = !me.name();
+    const onFile = async e => { const file = e.target.files[0]; if (file) form.photo = await readImage(file); };
+    const submit = async () => {
+      err.value = '';
+      const pet = state.pets.find(p => p.id === form.petId);
+      const petName = pet ? pet.name : form.petName.trim();
+      if (!form.photo) return (err.value = 'Elige una foto.');
+      if (!petName) return (err.value = 'Escribe cómo se llama tu mascota.');
+      if (needsName && !form.author.trim()) return (err.value = 'Escribe tu nombre para que el barrio sepa quién publica.');
+      if (needsName) state.user.name = form.author.trim();
+      sending.value = true;
+      try {
+        const id = await actions.addPost({
+          photo: form.photo, text: form.text.trim(), petId: pet ? pet.id : null, petName,
+          petPhoto: (pet && pet.photo) || null, zone: (pet && pet.zone) || state.user.zone || '',
+        });
+        toast('Publicado en Inicio');
+        Object.assign(feed, { tab: 'todo', q: '', searching: false });
+        go('inicio'); setTimeout(() => openSheet('post', id), 400);
+      } catch (e) { err.value = 'No se pudo publicar: ' + (e.message || 'revisa tu conexión'); }
+      finally { sending.value = false; }
+    };
+    return { form, mine, needsName, onFile, submit, err, sending, M, SPECIES, openSheet };
   },
   template: `
-    <main class="view">
-      <header class="view-head view-head--art">
-        <img class="view-head__art view-head__art--calm" :src="M('assets/head-cuaderno.webp')" alt="" width="108" height="100">
-        <span class="badge"><span class="badge__ico"><ico name="book" /></span>02 · EL CUADERNO</span>
-        <h1>Sus pequeños días. <span class="sketch">Nuestro álbum.</span></h1>
-        <p>La vida de las mascotas del barrio y cada reencuentro.</p>
-      </header>
-      <div class="tabs" role="tablist">
-        <button v-for="t in [['todo','Todo'],['mascotas','Mascotas'],['reencuentros','Reencuentros']]" :key="t[0]" :class="{on:tab===t[0]}" @click="tab=t[0]" role="tab" :aria-selected="tab===t[0]">{{ t[1] }}</button>
-      </div>
-      <article v-for="e in entries" :key="e.kind+e.id" class="post">
-        <div class="post__head">
-          <span class="report__img" :style="{background:accentOf(e.item.accent, e.id)}"><media :item="e.item" /></span>
-          <div><strong>{{ e.kind==='pet' ? e.item.owner || 'Un vecino' : (e.item.author || 'La comunidad') }}</strong><small>{{ e.item.zone }}<template v-if="e.date"> · {{ timeAgo(e.date) }}</template></small></div>
+    <form class="form" @submit.prevent="submit" novalidate>
+      <label class="photo-drop photo-drop--square">
+        <img v-if="form.photo" :src="form.photo" alt="Foto elegida">
+        <template v-else><ico name="camera" /><strong>Elige una foto</strong><span>Se verá en Inicio y en el álbum de tu mascota</span></template>
+        <input type="file" accept="image/*" @change="onFile" aria-label="Elegir foto">
+      </label>
+      <div class="field"><span>¿Quién sale en la foto?</span>
+        <div class="petpick">
+          <button v-for="p in mine" :key="p.id" type="button" class="chip" :class="{on:form.petId===p.id}" @click="form.petId=p.id">
+            <span class="chip__av"><media :item="p" /></span>{{ p.name }}
+          </button>
+          <button type="button" class="chip" :class="{on:!form.petId}" @click="form.petId=''"><ico name="paw" />{{ mine.length ? 'Otra' : 'Escribir su nombre' }}</button>
         </div>
-        <button class="post__photo" @click="openSheet(e.kind, e.id)"><media :item="e.item" /></button>
-        <div class="post__bar">
-          <button :class="{on:liked(e)}" @click="like(e)" :aria-pressed="liked(e)"><ico name="heart" />{{ e.kind==='pet' ? e.item.followers : e.item.likes }}</button>
-          <button @click="openSheet(e.kind, e.id)"><ico name="chat" />Ver</button>
-          <button @click="share(e.item.name + ' en ' + BRAND, '#/' + (e.kind==='pet' ? 'mascota/' : 'aviso/') + e.id)"><ico name="share" /></button>
-          <button :class="{on:isSaved(e.kind, e.id)}" @click="toggleSave(e.kind, e.id)" :aria-label="isSaved(e.kind, e.id) ? 'Quitar de guardados' : 'Guardar'"><ico name="bookmark" /></button>
-        </div>
-        <status-pill v-if="e.kind==='report'" :type="e.item.type" />
-        <h2>{{ e.item.name }}</h2>
-        <p>{{ e.kind==='pet' ? e.item.bio : e.item.desc }}</p>
-        <div class="traits" v-if="e.kind==='pet' && e.item.traits.length"><span v-for="t in e.item.traits" :key="t">{{ t }}</span></div>
-      </article>
-      <div class="letter">
-        <span class="eyebrow">Carta del cuaderno</span>
-        <p>Ellos hacen nuestro mundo más bonito. Hagamos el suyo un poco más seguro.</p>
-        <span class="hand">Con cariño, 4 Patitas.</span>
+        <input v-if="!form.petId" class="input" v-model="form.petName" placeholder="Nombre de la mascota" aria-label="Nombre de la mascota">
+        <small v-if="!mine.length">Agrega tus mascotas en tu <a href="#/perfil" class="textlink" @click.prevent="openSheet('newpet')">perfil</a> y cada foto quedará en su álbum.</small>
       </div>
-    </main>`,
+      <div class="field"><label for="po-text">Cuéntanos algo</label><textarea id="po-text" class="input" v-model="form.text" maxlength="1000" placeholder="Paseo de domingo por el Parque Urbano #perros"></textarea><small>Usa #etiquetas para que otros encuentren tu foto.</small></div>
+      <div class="field" v-if="needsName"><label for="po-author">Tu nombre</label><input id="po-author" class="input" v-model="form.author" autocomplete="name" placeholder="Así te verán en Inicio"></div>
+      <p v-if="err" class="error" role="alert">{{ err }}</p>
+      <button class="btn btn--green btn--full" :disabled="sending">{{ sending ? 'Publicando…' : 'Publicar en Inicio' }}<ico name="arrow" /></button>
+    </form>`,
 });
 
-/* ===================== GUARDADOS ===================== */
-app.component('v-guardados', {
+/* ===================== PERFIL: foto, álbumes de mis mascotas y guardados ===================== */
+app.component('v-perfil', {
   setup() {
-    const items = computed(() => state.user.saved.map(k => {
+    const editing = ref(!me.name()), tab = ref('fotos');
+    const name = computed(me.name), avatar = computed(me.avatar);
+    const myPets = computed(() => state.pets.filter(p => p.mine));
+    const myPosts = computed(() => state.posts.filter(p => p.mine).sort((a, b) => b.date - a.date));
+    const myReports = computed(() => state.reports.filter(r => r.mine).sort((a, b) => b.date - a.date));
+    const albums = computed(() => myPets.value.map(p => { const shots = albumOf(p); return { p, cover: shots[0], count: shots.length }; }));
+    const following = computed(() => (state.user.followed || []).length);
+    const saved = computed(() => state.user.saved.map(k => {
       const [kind, id] = k.split(':');
-      const item = kind === 'report' ? state.reports.find(r => r.id === id) : state.pets.find(p => p.id === id);
+      const list = { report: state.reports, pet: state.pets, post: state.posts }[kind] || [];
+      const item = list.find(x => x.id === id);
       return item ? { kind, id, item } : null;
     }).filter(Boolean));
-    return { items, M, go, openSheet, toggleSave };
+    const onAvatar = async e => { const file = e.target.files[0]; if (file) { state.user.avatar = await readImage(file, 360); toast('Foto de perfil lista'); } };
+    const tabs = [['fotos', 'Mis fotos'], ['guardados', 'Guardados'], ['avisos', 'Mis avisos']];
+    return { state, status, editing, tab, tabs, name, avatar, myPets, myPosts, myReports, albums, following, saved, onAvatar, ZONES, SPECIES, M, go, openSheet };
   },
   template: `
     <main class="view">
-      <header class="view-head view-head--art">
-        <img v-if="items.length" class="view-head__art view-head__art--wag" :src="M('assets/head-guardados.webp')" alt="" width="108" height="120">
-        <span class="badge"><span class="badge__ico"><ico name="bookmark" /></span>04 · GUARDADOS</span>
-        <h1>Mis <span class="sketch">páginas.</span></h1>
-        <p>Los avisos y las mascotas que guardaste en este teléfono.</p>
+      <span class="badge"><span class="badge__ico"><ico name="user" /></span>03 · MI PERFIL</span>
+      <header class="me">
+        <label class="me__avatar">
+          <img v-if="avatar" :src="M(avatar)" alt="Tu foto de perfil">
+          <span v-else-if="name" aria-hidden="true">{{ name.charAt(0).toUpperCase() }}</span>
+          <ico v-else name="user" />
+          <span class="me__cam" aria-hidden="true"><ico name="camera" /></span>
+          <input type="file" accept="image/*" @change="onAvatar" aria-label="Cambiar foto de perfil">
+        </label>
+        <div class="me__id">
+          <h1>{{ name || 'Tu perfil' }}</h1>
+          <p class="meta">{{ state.user.zone || 'Santa Cruz de la Sierra' }}<template v-if="status.user"> · {{ status.user.email }}</template></p>
+          <div class="me__stats"><span><b>{{ myPosts.length }}</b> fotos</span><span><b>{{ myPets.length }}</b> mascotas</span><span><b>{{ following }}</b> siguiendo</span></div>
+        </div>
       </header>
-      <div v-if="!items.length" class="empty">
-        <img class="empty__art" :src="M('assets/head-guardados.webp')" alt="" width="170" height="180">
-        <h2>Todavía no guardaste nada</h2>
-        <p>Toca el marcador en un aviso o en el cuaderno para volver a encontrarlo aquí.</p>
-        <button class="btn" @click="go('cuaderno')">Abrir el cuaderno</button>
+      <div class="me__actions">
+        <button class="btn btn--light btn--sm" @click="editing=!editing" :aria-expanded="editing"><ico name="edit" />Editar perfil</button>
+        <button class="btn btn--light btn--sm" @click="openSheet('cuenta')"><ico name="user" />{{ status.user ? 'Mi cuenta' : 'Entrar o crear cuenta' }}</button>
       </div>
-      <div v-else class="stagger" style="margin-top:12px">
-        <template v-for="x in items" :key="x.kind+x.id">
-          <report-row v-if="x.kind==='report'" :r="x.item" />
-          <button v-else class="report" @click="openSheet('pet', x.id)">
-            <span class="report__img"><media :item="x.item" /></span>
-            <div><span class="eyebrow">Mascota</span><strong>{{ x.item.name }}</strong><p>{{ x.item.breed }} · {{ x.item.zone }}</p></div>
-            <ico name="arrow" />
-          </button>
-        </template>
+      <form v-if="editing" class="form me__edit" @submit.prevent="editing=false">
+        <div class="grid2">
+          <div class="field"><label for="me-name">Tu nombre</label><input id="me-name" class="input" v-model.trim="state.user.name" autocomplete="name" placeholder="Ej. Valeria"></div>
+          <div class="field"><label for="me-zone">Tu barrio</label><select id="me-zone" class="input" v-model="state.user.zone"><option value="">Elegir</option><option v-for="(_,z) in ZONES" :key="z">{{ z }}</option></select></div>
+        </div>
+        <button class="btn btn--sm">Listo</button>
+      </form>
+
+      <div class="heading"><div><span class="eyebrow">Sus pequeños días</span><h2>Álbumes de mis mascotas</h2></div></div>
+      <div class="albums">
+        <button v-for="a in albums" :key="a.p.id" class="album" @click="openSheet('pet', a.p.id)">
+          <span class="album__cover"><img v-if="a.cover" :src="M(a.cover)" alt="" loading="lazy"><span v-else class="blank"><ico :name="SPECIES[a.p.species] || 'paw'" /></span></span>
+          <strong>{{ a.p.name }}</strong><small>{{ a.count }} {{ a.count === 1 ? 'foto' : 'fotos' }}<template v-if="a.p.lost"> · perdida</template></small>
+        </button>
+        <button class="album album--add" @click="openSheet('newpet')">
+          <span class="album__cover"><img v-if="!albums.length" :src="M('assets/head-cuaderno.webp')" alt="" class="album__art"><ico v-else name="plus" /></span>
+          <strong>Agregar mascota</strong><small>{{ albums.length ? 'Otro álbum' : 'Crea su primer álbum' }}</small>
+        </button>
       </div>
+
+      <div class="tabs" role="tablist" aria-label="Mi contenido">
+        <button v-for="t in tabs" :key="t[0]" role="tab" :aria-selected="tab===t[0]" :class="{on:tab===t[0]}" @click="tab=t[0]">{{ t[1] }}</button>
+      </div>
+      <template v-if="tab==='fotos'">
+        <div v-if="myPosts.length" class="minigrid">
+          <button v-for="x in myPosts" :key="x.id" @click="openSheet('post', x.id)" :aria-label="'Foto de ' + x.petName"><img :src="M(x.photo)" alt="" loading="lazy"></button>
+        </div>
+        <div v-else class="empty"><h2>Todavía no publicaste fotos</h2><p>Tus publicaciones aparecen en Inicio y en el álbum de tu mascota.</p><button class="btn" @click="go('agregar?tipo=post')"><ico name="camera" />Agregar publicación</button></div>
+      </template>
+      <template v-else-if="tab==='guardados'">
+        <div v-if="saved.length">
+          <template v-for="x in saved" :key="x.kind + x.id">
+            <report-row v-if="x.kind==='report'" :r="x.item" />
+            <button v-else class="report" @click="openSheet(x.kind, x.id)">
+              <span class="report__img"><img v-if="x.kind==='post'" :src="M(x.item.photo)" alt=""><media v-else :item="x.item" /></span>
+              <div><span class="eyebrow">{{ x.kind === 'post' ? 'Publicación' : 'Mascota' }}</span><strong>{{ x.kind === 'post' ? x.item.petName : x.item.name }}</strong><p>{{ x.kind === 'post' ? (x.item.author || 'Un vecino') : x.item.breed + ' · ' + x.item.zone }}</p></div>
+              <ico name="arrow" />
+            </button>
+          </template>
+        </div>
+        <div v-else class="empty">
+          <img class="empty__art" :src="M('assets/head-guardados.webp')" alt="" width="170" height="180">
+          <h2>Todavía no guardaste nada</h2>
+          <p>Toca el marcador en un aviso o en una foto para volver a encontrarlo aquí.</p>
+        </div>
+      </template>
+      <template v-else>
+        <report-row v-for="r in myReports" :key="r.id" :r="r" />
+        <div v-if="!myReports.length" class="empty"><h2>Sin avisos</h2><p>Si tu mascota se pierde, publícalo en Agregar y el barrio te ayuda a buscarla.</p><button class="btn" @click="go('agregar?tipo=aviso')"><ico name="megaphone" />Publicar un aviso</button></div>
+      </template>
     </main>`,
 });
 
@@ -618,15 +803,17 @@ app.component('s-report', {
     </section>`,
 });
 
-/* ===================== HOJA: MASCOTA ===================== */
+/* ===================== HOJA: MASCOTA (su álbum) ===================== */
 app.component('s-pet', {
   props: ['id'],
   setup(props) {
     const p = computed(() => state.pets.find(x => x.id === props.id));
+    const posts = computed(() => state.posts.filter(x => x.petId === props.id).sort((a, b) => b.date - a.date));
     const following = computed(() => (state.user.followed || []).includes(props.id));
     const follow = () => actions.toggleFollow(p.value);
-    const reportLost = () => { closeSheet(); go('publicar?pet=' + props.id); };
-    return { p, following, follow, reportLost, closeSheet, canEdit, isSaved, toggleSave, share, M, BRAND, accentOf };
+    const reportLost = () => { closeSheet(); go('agregar?aviso=' + props.id); };
+    const addPhoto = () => { closeSheet(); go('agregar?post=' + props.id); };
+    return { p, posts, following, follow, reportLost, addPhoto, closeSheet, canEdit, isSaved, toggleSave, share, openSheet, M, BRAND, accentOf };
   },
   template: `
     <section class="sheet" role="dialog" aria-modal="true" :aria-label="p ? p.name : 'Mascota'">
@@ -641,15 +828,128 @@ app.component('s-pet', {
           <p class="meta">{{ p.zone }}<template v-if="p.owner"> · familia {{ p.owner }}</template></p>
           <p v-if="p.lost" class="error" style="margin-top:10px">Esta mascota está perdida. Si la ves, avisa.</p>
           <p style="margin-top:12px;font-size:14.5px">{{ p.bio }}</p>
-          <div class="traits"><span v-for="t in p.traits" :key="t">{{ t }}</span></div>
+          <div class="traits" v-if="p.traits && p.traits.length"><span v-for="t in p.traits" :key="t">{{ t }}</span></div>
           <div class="actions">
-            <button class="btn btn--sm" :class="following ? 'btn--light' : ''" @click="follow"><ico :name="following ? 'check' : 'heart'" />{{ following ? 'Siguiendo' : 'Seguir' }} · {{ p.followers }}</button>
+            <button v-if="!p.mine" class="btn btn--sm" :class="following ? 'btn--light' : ''" @click="follow"><ico :name="following ? 'check' : 'heart'" />{{ following ? 'Siguiendo' : 'Seguir' }} · {{ p.followers }}</button>
+            <button v-else class="btn btn--sm" @click="addPhoto"><ico name="camera" />Agregar foto</button>
             <button class="iconbtn" :class="{on:isSaved('pet', p.id)}" @click="toggleSave('pet', p.id)" aria-label="Guardar"><ico name="bookmark" /></button>
             <button class="iconbtn" @click="share(p.name + ' en ' + BRAND, '#/mascota/' + p.id)" aria-label="Compartir"><ico name="share" /></button>
             <button v-if="!p.lost && canEdit(p)" class="iconbtn" @click="reportLost"><ico name="megaphone" />Avisar que se perdió</button>
           </div>
+          <div class="heading"><div><span class="eyebrow">Álbum</span><h2 style="font-size:21px">Los días de {{ p.name }}</h2></div><span class="meta">{{ posts.length }} {{ posts.length === 1 ? 'foto' : 'fotos' }}</span></div>
+          <div v-if="posts.length" class="minigrid">
+            <button v-for="x in posts" :key="x.id" @click="openSheet('post', x.id)" :aria-label="'Foto de ' + p.name"><img :src="M(x.photo)" alt="" loading="lazy"></button>
+          </div>
+          <p v-else class="meta">{{ p.mine ? 'Agrega su primera foto y aparecerá aquí y en Inicio.' : 'Todavía no hay fotos en su álbum.' }}</p>
         </div>
       </template>
+    </section>`,
+});
+
+/* ===================== HOJA: PUBLICACIÓN ===================== */
+app.component('s-post', {
+  props: ['id'],
+  setup(props) {
+    const p = computed(() => state.posts.find(x => x.id === props.id));
+    const pet = computed(() => petOf(p.value));
+    const comment = ref(''), confirmDel = ref(false), box = ref(null);
+    const like = () => actions.likePost(p.value);
+    const send = async () => {
+      const text = comment.value.trim(); if (!text) return;
+      try { await actions.commentPost(p.value, text); comment.value = ''; } catch (e) { toast('No se pudo enviar: ' + e.message); }
+    };
+    const remove = async () => {
+      if (!confirmDel.value) { confirmDel.value = true; return; }
+      try { await actions.removePost(props.id); closeSheet(); toast('Publicación borrada'); } catch (e) { toast(e.message); }
+    };
+    const openPet = () => pet.value && openSheet('pet', pet.value.id);
+    return { p, pet, comment, confirmDel, box, like, send, remove, openPet, pieces, searchTag, petAvatar, closeSheet, isSaved, toggleSave, share, timeAgo, M, BRAND, focus: () => box.value && box.value.focus() };
+  },
+  template: `
+    <section class="sheet" role="dialog" aria-modal="true" :aria-label="p ? 'Foto de ' + (p.petName || 'una mascota') : 'Publicación'">
+      <div class="sheet__grab"><i></i></div>
+      <button class="sheet__x" @click="closeSheet" aria-label="Cerrar"><ico name="close" /></button>
+      <template v-if="p">
+        <component :is="pet ? 'button' : 'div'" class="postsheet__pet" @click="openPet">
+          <span class="report__img"><img :src="M(petAvatar(p))" alt=""></span>
+          <span><strong>{{ p.petName || 'Una mascota del barrio' }}</strong><small v-if="pet">Ver su álbum</small></span>
+        </component>
+        <img class="postsheet__photo" :src="M(p.photo)" :alt="'Foto de ' + (p.petName || 'una mascota')">
+        <div class="sheet__body">
+          <div class="postsheet__row">
+            <div class="postsheet__who">
+              <b>{{ p.author || 'Un vecino' }}</b>
+              <span class="meta">{{ timeAgo(p.date) }}<template v-if="p.zone"> · {{ p.zone }}</template></span>
+              <span class="meta"><ico name="heart" />{{ p.likes }}</span>
+            </div>
+            <div class="postsheet__btns">
+              <button class="roundbtn" :class="{on:p.liked}" @click="like" :aria-pressed="p.liked" aria-label="Me gusta"><ico name="heart" /></button>
+              <button class="roundbtn" @click="focus" aria-label="Comentar"><ico name="chat" /></button>
+              <button class="roundbtn" :class="{on:isSaved('post', p.id)}" @click="toggleSave('post', p.id)" :aria-label="isSaved('post', p.id) ? 'Quitar de guardados' : 'Guardar'"><ico name="bookmark" /></button>
+              <button class="roundbtn" @click="share((p.petName || 'Una foto') + ' en ' + BRAND, '#/post/' + p.id)" aria-label="Compartir"><ico name="share" /></button>
+            </div>
+          </div>
+          <p class="caption" v-if="p.text"><b>{{ p.author || 'Un vecino' }}</b>&nbsp;<template v-for="(s,i) in pieces(p.text)" :key="i"><button v-if="s.tag" class="tag" @click="searchTag(s.t)">{{ s.t }}</button><template v-else>{{ s.t }}</template></template></p>
+          <button v-if="p.mine" class="textlink postsheet__del" @click="remove"><ico name="trash" />{{ confirmDel ? '¿Seguro? Toca otra vez para borrar' : 'Borrar publicación' }}</button>
+          <div class="comments">
+            <h3>Comentarios</h3>
+            <div v-for="(c,i) in p.comments" :key="c.id || i" class="comment"><b v-if="c.author" style="display:block;font-size:11.5px">{{ c.author }}</b>{{ c.text }} <span class="meta">· {{ timeAgo(c.date) }}</span></div>
+            <p v-if="!p.comments.length" class="meta">Sé el primero en comentar.</p>
+            <form class="comment-form" @submit.prevent="send"><input ref="box" class="input" v-model="comment" maxlength="500" placeholder="Escribe algo bonito" aria-label="Comentario"><button class="btn btn--sm" aria-label="Enviar"><ico name="arrow" /></button></form>
+          </div>
+        </div>
+      </template>
+      <div v-else class="sheet__body"><div class="empty"><h2>Esta publicación ya no está</h2></div></div>
+    </section>`,
+});
+
+/* ===================== HOJA: NUEVA MASCOTA (crea su álbum) ===================== */
+app.component('s-newpet', {
+  setup() {
+    const err = ref(''), sending = ref(false);
+    const form = reactive({ photo: null, name: '', species: 'perro', breed: '', age: '', zone: ZONES[state.user.zone] ? state.user.zone : 'Centro', bio: '' });
+    const onFile = async e => { const file = e.target.files[0]; if (file) form.photo = await readImage(file); };
+    const submit = async () => {
+      err.value = '';
+      if (!form.name.trim()) return (err.value = 'Escribe cómo se llama.');
+      sending.value = true;
+      try {
+        const id = await actions.addPet({ ...form, name: form.name.trim(), owner: me.name(), traits: [], accent: ACCENTS[Math.floor(Math.random() * ACCENTS.length)] });
+        toast('Álbum de ' + form.name.trim() + ' creado');
+        openSheet('pet', id);
+      } catch (e) { err.value = 'No se pudo guardar: ' + (e.message || 'revisa tu conexión'); }
+      finally { sending.value = false; }
+    };
+    return { form, err, sending, onFile, submit, closeSheet, SPECIES, ZONES };
+  },
+  template: `
+    <section class="sheet" role="dialog" aria-modal="true" aria-label="Agregar mascota">
+      <div class="sheet__grab"><i></i></div>
+      <button class="sheet__x" @click="closeSheet" aria-label="Cerrar"><ico name="close" /></button>
+      <div class="sheet__body">
+        <span class="badge" style="margin-top:8px"><span class="badge__ico"><ico name="paw" /></span>NUEVO ÁLBUM</span>
+        <h2 style="font-size:26px;margin:14px 0 4px">Presenta a tu mascota.</h2>
+        <p class="meta">Tendrá su propio álbum y el barrio podrá seguirla.</p>
+        <form class="form" @submit.prevent="submit" novalidate>
+          <label class="photo-drop">
+            <img v-if="form.photo" :src="form.photo" alt="Foto elegida">
+            <template v-else><ico name="camera" /><strong>Su foto de perfil</strong><span>Una donde se le vea bien la carita</span></template>
+            <input type="file" accept="image/*" @change="onFile" aria-label="Elegir foto">
+          </label>
+          <div class="field"><label for="np-name">Nombre</label><input id="np-name" class="input" v-model="form.name" placeholder="Ej. Canela"></div>
+          <div class="field"><span>Especie</span>
+            <div class="species"><button v-for="(icon,k) in SPECIES" :key="k" type="button" class="chip" :class="{on:form.species===k}" @click="form.species=k"><ico :name="icon" />{{ k }}</button></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="np-breed">Raza</label><input id="np-breed" class="input" v-model="form.breed" placeholder="Mestizo"></div>
+            <div class="field"><label for="np-age">Edad</label><input id="np-age" class="input" v-model="form.age" placeholder="2 años"></div>
+          </div>
+          <div class="field"><label for="np-zone">Barrio</label><select id="np-zone" class="input" v-model="form.zone"><option v-for="(_,z) in ZONES" :key="z">{{ z }}</option></select></div>
+          <div class="field"><label for="np-bio">Cuéntanos de su carácter</label><textarea id="np-bio" class="input" v-model="form.bio" placeholder="Dormilona, glotona y experta en pedir comida"></textarea></div>
+          <p v-if="err" class="error" role="alert">{{ err }}</p>
+          <button class="btn btn--green btn--full" :disabled="sending">{{ sending ? 'Guardando…' : 'Crear su álbum' }}<ico name="arrow" /></button>
+        </form>
+      </div>
     </section>`,
 });
 
@@ -680,7 +980,7 @@ app.component('s-cuenta', {
       <div class="sheet__grab"><i></i></div>
       <button class="sheet__x" @click="closeSheet" aria-label="Cerrar"><ico name="close" /></button>
       <div class="sheet__body">
-        <span class="badge" style="margin-top:8px"><span class="badge__ico"><ico name="user" /></span>05 · MI CUENTA</span>
+        <span class="badge" style="margin-top:8px"><span class="badge__ico"><ico name="user" /></span>04 · MI CUENTA</span>
         <template v-if="status.user">
           <h2 style="font-size:28px;margin:14px 0 2px">Hola, {{ status.user.name }}.</h2>
           <p class="meta">{{ status.user.email }}</p>
@@ -715,8 +1015,8 @@ app.component('s-cuenta', {
         <hr class="rule">
         <span class="eyebrow">Sobre 4 Patitas</span>
         <div class="faq">
-          <details><summary>¿Es gratis?</summary><p>Sí. Ver el mapa, publicar avisos y llevar el cuaderno es gratis.</p></details>
-          <details><summary>¿Qué hago si encuentro una mascota?</summary><p>Toca Publicar, elige "Lo encontré", marca el lugar en el mapa y sube una foto. Si coincide con un aviso, te lo mostramos.</p></details>
+          <details><summary>¿Es gratis?</summary><p>Sí. Ver el mapa, publicar avisos y compartir fotos de tu mascota es gratis.</p></details>
+          <details><summary>¿Qué hago si encuentro una mascota?</summary><p>Toca Agregar, elige Aviso y luego "Lo encontré". Marca el lugar en el mapa y sube una foto. Si coincide con un aviso, te lo mostramos.</p></details>
           <details><summary>¿Mi WhatsApp es público?</summary><p>Solo aparece un botón para escribirte en los avisos que tú publicas. Puedes borrarlos cuando quieras.</p></details>
           <details><summary>¿Dónde funciona?</summary><p>En Santa Cruz de la Sierra y alrededores: Urubó, Warnes y La Guardia.</p></details>
         </div>

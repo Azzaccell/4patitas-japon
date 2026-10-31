@@ -9,7 +9,7 @@
     ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: true, flowType: 'pkce', detectSessionInUrl: true } })
     : null;
 
-  const status = Vue.reactive({ online: false, connecting: !!sb, uid: null, user: null, authBusy: false, hasAuthor: false, googleReady: null, emailReady: null, autoconfirm: null, recovery: false });
+  const status = Vue.reactive({ online: false, postsOnline: false, connecting: !!sb, uid: null, user: null, authBusy: false, hasAuthor: false, googleReady: null, emailReady: null, autoconfirm: null, recovery: false });
   const notify = msg => H.onError && H.onError(msg);
   const liked = new Set(state.user.liked || []);
   const followed = new Set(state.user.followed || []);
@@ -33,8 +33,16 @@
     ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: row.avatar || '',
   }])[0];
   const toComment = row => ({ id: row.id, text: row.text, date: Date.parse(row.created_at), author: row.author || '', avatar: row.avatar || '' });
+  const toPost = row => ({
+    id: row.id, petId: row.pet_id, petName: row.pet_name || '', petPhoto: row.pet_photo || row.photo, photo: row.photo, text: row.text || '',
+    zone: row.zone || '', likes: row.likes || 0, liked: liked.has(row.id), date: Date.parse(row.created_at), comments: [],
+    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: row.avatar || '',
+  });
   // Nombre y foto de Google para guardar junto a lo publicado (solo si la base ya tiene esas columnas)
   const byline = () => (status.hasAuthor && status.user ? { author: status.user.name, avatar: status.user.avatar || null } : {});
+
+  // Quién firma una publicación: el nombre de la cuenta o el que la persona puso en su perfil
+  const postAuthor = () => state.user.name || (status.user && status.user.name) || '';
 
   const digits = c => { const d = String(c || '').replace(/\D/g, ''); return d.startsWith('591') ? d : '591' + d; };
 
@@ -60,6 +68,7 @@
     // recalcula qué publicaciones son de esta persona
     state.reports.forEach(r => { if (r.ownerId !== undefined) r.mine = !!status.uid && r.ownerId === status.uid; });
     state.pets.forEach(p => { if (p.ownerId !== undefined) p.mine = !!status.uid && p.ownerId === status.uid; });
+    (state.posts || []).forEach(p => { if (p.ownerId !== undefined) p.mine = !!status.uid && p.ownerId === status.uid; });
   }
 
   // Vuelta de Google: limpia ?code= / ?error= de la dirección y avisa si algo falló
@@ -207,10 +216,12 @@
         if (event === 'SIGNED_IN' && s && !s.user.is_anonymous && status.user) notify('👋 ¡Hola, ' + status.user.name + '!');
       });
 
-      const [reports, pets, comments] = await Promise.all([
+      const [reports, pets, comments, posts, postComments] = await Promise.all([
         sb.from('reports').select('*').order('created_at', { ascending: false }).limit(500),
         sb.from('pets').select('*').order('created_at', { ascending: true }).limit(500),
         sb.from('comments').select('*').order('created_at', { ascending: true }).limit(3000),
+        sb.from('posts').select('*').order('created_at', { ascending: false }).limit(300),
+        sb.from('post_comments').select('*').order('created_at', { ascending: true }).limit(3000),
       ]);
       const err = reports.error || pets.error || comments.error;
       if (err) throw err;
@@ -221,6 +232,14 @@
       comments.data.forEach(c => byId[c.report_id] && byId[c.report_id].comments.push(toComment(c)));
       state.reports = list;
       state.pets = pets.data.map(toPet);
+      // Las publicaciones de Inicio necesitan la tabla de supabase/publicaciones.sql; sin ella quedan en este teléfono
+      if (!posts.error) {
+        const feed = posts.data.map(toPost);
+        const postById = Object.fromEntries(feed.map(p => [p.id, p]));
+        if (!postComments.error) postComments.data.forEach(c => postById[c.post_id] && postById[c.post_id].comments.push(toComment(c)));
+        state.posts = feed;
+        status.postsOnline = true;
+      } else console.info('Publicaciones solo en este teléfono:', posts.error.message);
       status.online = true;
       subscribe();
     } catch (e) {
@@ -233,7 +252,8 @@
   }
 
   function subscribe() {
-    sb.channel('huellas')
+    const ch = sb.channel('huellas');
+    ch
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, ({ eventType, new: row, old }) => {
         const i = state.reports.findIndex(r => r.id === (row && row.id) || r.id === (old && old.id));
         if (eventType === 'DELETE') { if (i > -1) state.reports.splice(i, 1); return; }
@@ -249,8 +269,20 @@
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, ({ new: row }) => {
         const r = state.reports.find(x => x.id === row.report_id);
         if (r && !r.comments.some(c => c.id === row.id)) r.comments.push(toComment(row));
+      });
+    if (status.postsOnline) ch
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, ({ eventType, new: row, old }) => {
+        const i = state.posts.findIndex(p => p.id === (row && row.id) || p.id === (old && old.id));
+        if (eventType === 'DELETE') { if (i > -1) state.posts.splice(i, 1); return; }
+        const p = toPost(row);
+        if (i > -1) Object.assign(state.posts[i], { ...p, comments: state.posts[i].comments, liked: state.posts[i].liked });
+        else state.posts.unshift(p);
       })
-      .subscribe();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'post_comments' }, ({ new: row }) => {
+        const p = state.posts.find(x => x.id === row.post_id);
+        if (p && !p.comments.some(c => c.id === row.id)) p.comments.push(toComment(row));
+      });
+    ch.subscribe();
   }
 
   // ---------- acciones ----------
@@ -272,6 +304,14 @@
     async setReportType(r, type) { r.type = type; },
     async setPetLost(p, lost) { p.lost = lost; },
     async removeReport(id) { const i = state.reports.findIndex(x => x.id === id); if (i > -1) state.reports.splice(i, 1); },
+    async addPost(form) {
+      const id = 'po' + Date.now();
+      state.posts.unshift({ ...form, id, date: Date.now(), likes: 0, liked: false, comments: [], mine: true, author: postAuthor() });
+      return id;
+    },
+    async likePost(p) { await local.toggleLike(p); },
+    async commentPost(p, text) { await local.addComment(p, text); },
+    async removePost(id) { const i = state.posts.findIndex(x => x.id === id); if (i > -1) state.posts.splice(i, 1); },
   };
 
   const remote = {
@@ -328,10 +368,38 @@
       if (error) throw error;
       await local.removeReport(id);
     },
+    async addPost(form) {
+      const photo = await uploadPhoto(form.photo);
+      const petPhoto = form.petPhoto && !form.petPhoto.startsWith('data:') ? form.petPhoto : photo;
+      const { data, error } = await sb.from('posts').insert({
+        photo, text: form.text.trim(), pet_id: form.petId || null, pet_name: form.petName || null, pet_photo: petPhoto,
+        zone: form.zone || null, author: postAuthor() || null, avatar: (status.user && status.user.avatar) || null,
+      }).select().single();
+      if (error) throw error;
+      if (!state.posts.some(p => p.id === data.id)) state.posts.unshift(toPost(data));
+      return data.id;
+    },
+    async likePost(p) {
+      await local.toggleLike(p);
+      const { data, error } = await sb.rpc('like_post', { pid: p.id, delta: p.liked ? 1 : -1 });
+      if (!error && typeof data === 'number') p.likes = data;
+    },
+    async commentPost(p, text) {
+      const { data, error } = await sb.from('post_comments').insert({ post_id: p.id, text, author: postAuthor() || null }).select().single();
+      if (error) throw error;
+      if (!p.comments.some(c => c.id === data.id)) p.comments.push(toComment(data));
+    },
+    async removePost(id) {
+      const { error } = await sb.from('posts').delete().eq('id', id);
+      if (error) throw error;
+      await local.removePost(id);
+    },
   };
 
-  // En línea solo si la conexión funcionó; si no, todo sigue en modo local
-  const actions = Object.fromEntries(Object.keys(local).map(k => [k, (...a) => (status.online ? remote : local)[k](...a)]));
+  // En línea solo si la conexión funcionó; si no, todo sigue en modo local.
+  // Las publicaciones van aparte: dependen de que exista su tabla en la base.
+  const POSTS = ['addPost', 'likePost', 'commentPost', 'removePost'];
+  const actions = Object.fromEntries(Object.keys(local).map(k => [k, (...a) => ((POSTS.includes(k) ? status.postsOnline : status.online) ? remote : local)[k](...a)]));
   // ¿Puede esta persona editar la alerta/mascota? En local: siempre. En línea: solo si es suya.
   const canEdit = item => !status.online || !!item.mine;
   const auth = {

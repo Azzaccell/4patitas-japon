@@ -66,6 +66,30 @@ window.HUELLAS = (() => {
     { id: 'p13', name: 'Lucas', species: 'perro', breed: 'Mestizo', age: '2 años', owner: 'Familia Suárez', zone: 'Plan 3000', photo: P + 'lucas.jpg', bio: 'Rescatado de la calle gracias a 4 Patitas. Hoy es el payaso de la casa.', traits: ['Adoptada', 'Sociable'], followers: 3560, accent: '#FF4D4D' },
   ];
 
+  // Publicaciones de Inicio (la red social del barrio). Cada una lleva el nombre y la foto de su mascota,
+  // así se ve bien aunque la mascota no esté en el cuaderno de este teléfono.
+  const A = 'assets/mascotas/';
+  const seedPosts = () => [
+    { petId: 'p9', petName: 'Bruno', author: 'Rodrigo C.', zone: 'Parque Urbano', photo: A + 'bruno.webp', h: 1, likes: 128, text: 'Paseo de domingo por el Parque Urbano. Saludó a todos los perros del camino. #pug #ParqueUrbano' },
+    { petId: 'p10', petName: 'Kira', author: 'Sofía M.', zone: 'Urubó', photo: A + 'kira.webp', h: 3, likes: 210, text: 'Cinco frisbees seguidos sin dejar caer ninguno. Nuevo récord en el Urubó. #bordercollie #Urubó' },
+    { petId: 'p7', petName: 'Coco', author: 'Lucía V.', zone: 'Urbarí', photo: A + 'coco.webp', h: 4, likes: 96, text: 'Vigilando la calle desde el balcón, como todas las tardes. #dálmata #Urbarí' },
+    { petId: 'p13', petName: 'Lucas', author: 'Familia Suárez', zone: 'Plan 3000', photo: A + 'lucas.webp', h: 6, likes: 341, text: 'Hace un año lo rescatamos en el Plan 3000. Hoy es el payaso de la casa. #adopción #rescate',
+      comments: [{ id: 1, text: '¡Qué carita! Gracias por adoptarlo.', author: 'Camila S.', h: 5 }] },
+    { petId: 'p12', petName: 'Nala', author: 'Fernanda L.', zone: 'Hamacas', photo: A + 'nala.webp', h: 8, likes: 74, text: 'Ojos color miel y cero ganas de posar. #gatonegro' },
+    { petId: 'p8', petName: 'Max', author: 'Paola G.', zone: 'Sirari', photo: A + 'max.webp', h: 10, likes: 63, text: 'Recién salido de la peluquería y ya se revolcó en el pasto. #yorkie #Sirari' },
+    { petName: 'Pimienta', author: 'Gabriela N.', zone: 'Equipetrol', photo: A + 'negrito.webp', h: 13, likes: 119, text: 'Primer día en el parque y no paró de correr. #cachorro #Equipetrol' },
+    { petId: 'p11', petName: 'Simón', author: 'Mateo F.', zone: 'Las Palmas', photo: A + 'simon.webp', h: 20, likes: 52, text: 'Descubrió la arena del patio y ya no quiere entrar. #conejo' },
+    { petId: 'p1', petName: 'Canela', author: 'Valeria R.', zone: 'Equipetrol', photo: 'assets/siesta.webp', h: 26, likes: 158, text: 'Siesta de las tres de la tarde. Nadie la despierta. #siesta #gatos' },
+    { petName: 'Lola', author: 'Familia de Lola', zone: 'Villa 1ro de Mayo', photo: A + 'lola.webp', h: 40, likes: 402, text: 'Lola ya está en casa y volvió a sus paseos. Gracias a todos los que compartieron su aviso. #reencuentro #4Patitas',
+      comments: [{ id: 2, text: 'Lloré con esta noticia. ¡Bienvenida, Lola!', author: 'Jorge P.', h: 38 }, { id: 3, text: 'Así da gusto compartir.', author: 'Diego A.', h: 30 }] },
+    { petName: 'Mango', author: 'Daniel R.', zone: 'Las Palmas', photo: A + 'golden.webp', h: 50, likes: 88, text: 'Mirando el atardecer en Las Palmas. #golden #atardecer' },
+    { petId: 'p3', petName: 'Luna', author: 'Camila S.', zone: 'Sirari', photo: 'assets/engawa.webp', h: 60, likes: 87, text: 'Su lugar favorito: el sol de la tarde en el corredor. #gatos' },
+    { petName: 'Michi', author: 'Rosa M.', zone: 'Hamacas', photo: A + 'atigrado.webp', h: 70, likes: 145, text: 'Así me mira cuando son las siete y todavía no hay comida. #gatos #Hamacas' },
+  ].map((p, i) => ({
+    id: 'po' + (i + 1), date: ago(p.h), liked: false, mine: false, petId: null, petPhoto: p.photo, ...p,
+    comments: (p.comments || []).map(c => ({ ...c, date: ago(c.h) })),
+  }));
+
   // App para celular: nada de video. Las rutas de la base compartida con 4 Patitas (media/pets/*.jpg y
   // media/v*.mp4) se traducen a imágenes WebP livianas; en el HTML final vienen incrustadas (window.HUELLAS_MEDIA).
   const LITE = true;
@@ -90,12 +114,14 @@ window.HUELLAS = (() => {
   try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
 
   const state = Vue.reactive(saved && saved.reports ? saved : {
-    reports: lite(seedReports()), pets: lite(seedPets()), user: { name: '', zone: '', saved: [], welcomed: false },
+    reports: lite(seedReports()), pets: lite(seedPets()), posts: seedPosts(), user: { name: '', zone: '', avatar: '', saved: [], welcomed: false },
   });
+  // teléfonos que ya tenían la app antes de que existiera Inicio social
+  if (!Array.isArray(state.posts)) state.posts = seedPosts();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn('No se pudo guardar', e); } };
   Vue.watch(state, save, { deep: true });
 
-  const reset = () => { Object.assign(state, { reports: lite(seedReports()), pets: lite(seedPets()) }); };
+  const reset = () => { Object.assign(state, { reports: lite(seedReports()), pets: lite(seedPets()), posts: seedPosts() }); };
 
   // Distancia en km (haversine)
   const km = (a, b) => {
