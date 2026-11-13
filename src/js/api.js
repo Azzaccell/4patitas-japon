@@ -18,6 +18,8 @@
   // La web abierta como archivo (file://, content:// de WhatsApp) no puede recibir la vuelta de Google
   const hosted = /^https?:$/.test(location.protocol);
   const redirectTo = () => location.origin + location.pathname;
+  // El enlace del correo de confirmación abre una página propia que solo dice "¡Gracias!"
+  const confirmUrl = () => new URL('confirmado.html', cfg.siteUrl || location.href).href;
 
   // ---------- conversión fila de la base ↔ objeto de la app ----------
   // Una foto solo puede ser https, una imagen incrustada o un archivo propio de la app
@@ -67,9 +69,17 @@
   // "anónimo" hasta que se renueva, y la base le niega lo que pide cuenta. Si pasa eso, se renueva ya.
   const claims = token => { try { return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return {}; } };
   async function freshToken(session) {
-    if (!session || session.user.is_anonymous || !claims(session.access_token).is_anonymous) return session;
-    const { data, error } = await sb.auth.refreshSession();
-    return (!error && data.session) || session;
+    if (!session) return session;
+    try {
+      if (session.user.is_anonymous) {
+        // invitado que creó su cuenta y la confirmó desde el correo: la base ya lo tiene como cuenta,
+        // pero la sesión guardada en el teléfono todavía no lo sabe
+        const { data } = await sb.auth.getUser();
+        if (!(data && data.user && !data.user.is_anonymous)) return session;
+      } else if (!claims(session.access_token).is_anonymous) return session;
+      const { data, error } = await sb.auth.refreshSession();
+      return (!error && data.session) || session;
+    } catch (e) { return session; } // si algo falla, se sigue con la sesión que había
   }
   // Escritura que pide cuenta: si la base la rechaza por permisos, se renueva el pase y se intenta una vez más
   async function asMember(run) {
@@ -157,14 +167,14 @@
       const { data: { session } } = await sb.auth.getSession();
       let res;
       if (session && session.user.is_anonymous) {
-        // el enlace de confirmación vuelve a la app (sin esto, Supabase usa su Site URL)
-        res = await sb.auth.updateUser({ email: email.trim(), password, data }, { emailRedirectTo: cfg.siteUrl || redirectTo() });
+        // el enlace de confirmación abre confirmado.html (sin esto, Supabase usa su Site URL)
+        res = await sb.auth.updateUser({ email: email.trim(), password, data }, { emailRedirectTo: confirmUrl() });
         if (res.error) throw res.error;
         // con "Confirm email" activado, el correo queda pendiente hasta que se confirme
         if (res.data.user && res.data.user.is_anonymous) return { pending: true };
         await sb.auth.refreshSession(); // el pase nuevo ya dice que es una cuenta
       } else {
-        res = await sb.auth.signUp({ email: email.trim(), password, options: { data, emailRedirectTo: cfg.siteUrl || redirectTo() } });
+        res = await sb.auth.signUp({ email: email.trim(), password, options: { data, emailRedirectTo: confirmUrl() } });
         if (res.error) throw res.error;
         if (!res.data.session) return { pending: true };
       }
