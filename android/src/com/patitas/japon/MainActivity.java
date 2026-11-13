@@ -84,7 +84,8 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri u = request.getUrl();
                 // dentro de la app solo se abre la propia app; nada de otros archivos del teléfono
-                if (u.toString().startsWith(APP_URL)) return false;
+                // comparación exacta: "index.html/../otro-archivo" no pasa por la app
+                if ("file".equals(u.getScheme()) && "/android_asset/index.html".equals(u.getPath())) return false;
                 openExternal(u); // WhatsApp, enlaces web, correo: fuera de la app
                 return true;
             }

@@ -19,6 +19,13 @@ create table if not exists public.denuncias (
 );
 create index if not exists denuncias_objetivo on public.denuncias (kind, target_id);
 
+-- la fecha de la denuncia la pone la base (si no, se podría esquivar el límite por hora)
+create or replace function public.fechar_denuncia() returns trigger language plpgsql as $$
+begin new.created_at := now(); new.revisada := false; return new; end $$;
+revoke all on function public.fechar_denuncia() from public, anon, authenticated;
+drop trigger if exists fechar_denuncia on public.denuncias;
+create trigger fechar_denuncia before insert on public.denuncias for each row execute function public.fechar_denuncia();
+
 alter table public.denuncias enable row level security;
 drop policy if exists "denuncias: denunciar" on public.denuncias;
 drop policy if exists "denuncias: ver las mías" on public.denuncias;
