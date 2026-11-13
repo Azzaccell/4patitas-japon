@@ -353,11 +353,11 @@ textarea.input{min-height:96px;resize:vertical}
 
 /* ---------- Agregar ---------- */
 .choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
-.choice button{display:grid;align-content:start;justify-items:start;gap:3px;text-align:left;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--white);min-height:128px;transition:box-shadow .15s,background-color .15s}
+.choice button{position:relative;display:grid;align-content:start;justify-items:start;gap:3px;text-align:left;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--white);min-height:128px;transition:box-shadow .15s,background-color .15s}
 .choice button.on{border:1.5px solid var(--ink);background:var(--pastel);box-shadow:3px 3px 0 var(--ink)}
 .choice__ico{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--paper);border:1.2px dashed var(--ink);margin-bottom:6px}
 .choice strong{font-family:var(--serif);font-size:18px}
-.choice button span:last-child{font-size:12px;line-height:1.45;color:var(--ink-light)}
+.choice__text{font-size:12px;line-height:1.45;color:var(--ink-light)}
 .choice__hint{text-align:center;margin-top:26px}
 .photo-drop--square{min-height:220px}
 .photo-drop--square img{max-height:none;aspect-ratio:1}
@@ -416,3 +416,41 @@ textarea.input{min-height:96px;resize:vertical}
 .postsheet__del{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:var(--hanko)}
 .postsheet__del .icon{width:16px;height:16px}
 @media (max-width:370px){.postsheet__row{flex-wrap:wrap}.roundbtn{width:40px;height:40px}}
+
+/* =====================================================================
+   ENTRADA: cuenta o invitado
+   ===================================================================== */
+.gate{position:fixed;z-index:80;inset:0;max-width:480px;margin:0 auto;overflow-y:auto;overscroll-behavior:contain;background:var(--paper);animation:fade .3s}
+/* el suelo terracota de la ilustración sigue de borde a borde aunque la imagen sea más angosta */
+.gate__poster{--art:min(24vh,240px);display:grid;justify-items:center;padding-top:calc(16px + var(--safe-t));background:linear-gradient(to top,var(--ground) calc(var(--art) * .132),var(--sky) 0)}
+.gate__poster img{width:auto;max-width:100%;height:var(--art);-webkit-mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent);mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent)}
+.gate__brand{color:var(--ink);font-size:28px}
+.gate__card{position:relative;margin-top:-22px;padding:20px 20px calc(28px + var(--safe-b));display:grid;gap:10px;background:var(--paper);border-radius:22px 22px 0 0}
+.gate__card .jp-tag{justify-self:start}
+.gate__card h1{font-size:30px;margin-top:4px}
+.gate__card .eauth{margin-top:4px}
+.gate__or{display:flex;align-items:center;gap:12px;margin:2px 0;font-size:12px;color:var(--muted)}
+.gate__or::before,.gate__or::after{content:"";flex:1;height:1px;background:var(--line)}
+.gate__guest{list-style:none;display:grid;gap:6px;margin-top:4px;font-size:12.5px;line-height:1.5;color:var(--ink-light)}
+.gate__guest li{display:flex;align-items:flex-start;gap:8px}
+.gate__guest .icon{width:16px;height:16px;margin-top:2px}
+.gate__guest .yes .icon{color:var(--bandana)}
+.gate__guest .no .icon{color:var(--hanko)}
+.eauth__offline{padding:9px 12px;border-radius:8px;background:#f7efcf;color:#62572f;font-size:12.5px;line-height:1.5}
+.needs{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px 14px;border:1.5px solid var(--ink);border-radius:12px;background:var(--pastel-light);box-shadow:2px 2px 0 var(--pastel-dark)}
+.needs .icon{color:var(--hanko);margin-top:1px}
+.needs p{font-size:13.5px;line-height:1.55}
+.choice__lock{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border:1px solid var(--line);border-radius:12px;background:var(--white);font-size:10.5px;font-weight:700;color:var(--hanko)}
+.choice__lock .icon{width:12px;height:12px}
+.locked{display:grid;justify-items:center;gap:10px;margin-top:18px;padding:22px 18px;text-align:center;border:1.5px dashed var(--line);border-radius:var(--r);background:var(--white)}
+.locked h2{font-size:22px}
+.locked p{max-width:320px;font-size:13px;color:var(--muted)}
+.locked .btn{max-width:320px}
+.locked__ico{width:52px;height:52px;display:grid;place-items:center;border-radius:50%;border:1.5px solid var(--ink);background:var(--pastel);color:var(--hanko)}
+.me__avatar--guest{cursor:default;background:var(--pastel-light)}
+.perks{display:grid;gap:10px;margin-top:18px;padding:16px;border:1.5px solid var(--ink);border-radius:14px;background:var(--white);box-shadow:3px 3px 0 var(--pastel-dark)}
+.perks ul{list-style:none;display:grid;gap:8px;margin-bottom:4px}
+.perks li{display:flex;align-items:center;gap:10px;font-size:13.5px;line-height:1.45}
+.perks__ico{width:30px;height:30px;flex-shrink:0;display:grid;place-items:center;border-radius:50%;background:var(--pastel-light)}
+.perks__ico .icon{width:16px;height:16px}
+.comment-lock{margin-top:12px;font-size:13px}

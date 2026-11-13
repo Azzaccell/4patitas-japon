@@ -370,11 +370,11 @@ textarea.input{min-height:96px;resize:vertical}
 
 /* ---------- Agregar ---------- */
 .choice{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
-.choice button{display:grid;align-content:start;justify-items:start;gap:3px;text-align:left;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--white);min-height:128px;transition:box-shadow .15s,background-color .15s}
+.choice button{position:relative;display:grid;align-content:start;justify-items:start;gap:3px;text-align:left;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--white);min-height:128px;transition:box-shadow .15s,background-color .15s}
 .choice button.on{border:1.5px solid var(--ink);background:var(--pastel);box-shadow:3px 3px 0 var(--ink)}
 .choice__ico{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:var(--paper);border:1.2px dashed var(--ink);margin-bottom:6px}
 .choice strong{font-family:var(--serif);font-size:18px}
-.choice button span:last-child{font-size:12px;line-height:1.45;color:var(--ink-light)}
+.choice__text{font-size:12px;line-height:1.45;color:var(--ink-light)}
 .choice__hint{text-align:center;margin-top:26px}
 .photo-drop--square{min-height:220px}
 .photo-drop--square img{max-height:none;aspect-ratio:1}
@@ -433,6 +433,44 @@ textarea.input{min-height:96px;resize:vertical}
 .postsheet__del{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:var(--hanko)}
 .postsheet__del .icon{width:16px;height:16px}
 @media (max-width:370px){.postsheet__row{flex-wrap:wrap}.roundbtn{width:40px;height:40px}}
+
+/* =====================================================================
+   ENTRADA: cuenta o invitado
+   ===================================================================== */
+.gate{position:fixed;z-index:80;inset:0;max-width:480px;margin:0 auto;overflow-y:auto;overscroll-behavior:contain;background:var(--paper);animation:fade .3s}
+/* el suelo terracota de la ilustración sigue de borde a borde aunque la imagen sea más angosta */
+.gate__poster{--art:min(24vh,240px);display:grid;justify-items:center;padding-top:calc(16px + var(--safe-t));background:linear-gradient(to top,var(--ground) calc(var(--art) * .132),var(--sky) 0)}
+.gate__poster img{width:auto;max-width:100%;height:var(--art);-webkit-mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent);mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent)}
+.gate__brand{color:var(--ink);font-size:28px}
+.gate__card{position:relative;margin-top:-22px;padding:20px 20px calc(28px + var(--safe-b));display:grid;gap:10px;background:var(--paper);border-radius:22px 22px 0 0}
+.gate__card .jp-tag{justify-self:start}
+.gate__card h1{font-size:30px;margin-top:4px}
+.gate__card .eauth{margin-top:4px}
+.gate__or{display:flex;align-items:center;gap:12px;margin:2px 0;font-size:12px;color:var(--muted)}
+.gate__or::before,.gate__or::after{content:"";flex:1;height:1px;background:var(--line)}
+.gate__guest{list-style:none;display:grid;gap:6px;margin-top:4px;font-size:12.5px;line-height:1.5;color:var(--ink-light)}
+.gate__guest li{display:flex;align-items:flex-start;gap:8px}
+.gate__guest .icon{width:16px;height:16px;margin-top:2px}
+.gate__guest .yes .icon{color:var(--bandana)}
+.gate__guest .no .icon{color:var(--hanko)}
+.eauth__offline{padding:9px 12px;border-radius:8px;background:#f7efcf;color:#62572f;font-size:12.5px;line-height:1.5}
+.needs{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px 14px;border:1.5px solid var(--ink);border-radius:12px;background:var(--pastel-light);box-shadow:2px 2px 0 var(--pastel-dark)}
+.needs .icon{color:var(--hanko);margin-top:1px}
+.needs p{font-size:13.5px;line-height:1.55}
+.choice__lock{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border:1px solid var(--line);border-radius:12px;background:var(--white);font-size:10.5px;font-weight:700;color:var(--hanko)}
+.choice__lock .icon{width:12px;height:12px}
+.locked{display:grid;justify-items:center;gap:10px;margin-top:18px;padding:22px 18px;text-align:center;border:1.5px dashed var(--line);border-radius:var(--r);background:var(--white)}
+.locked h2{font-size:22px}
+.locked p{max-width:320px;font-size:13px;color:var(--muted)}
+.locked .btn{max-width:320px}
+.locked__ico{width:52px;height:52px;display:grid;place-items:center;border-radius:50%;border:1.5px solid var(--ink);background:var(--pastel);color:var(--hanko)}
+.me__avatar--guest{cursor:default;background:var(--pastel-light)}
+.perks{display:grid;gap:10px;margin-top:18px;padding:16px;border:1.5px solid var(--ink);border-radius:14px;background:var(--white);box-shadow:3px 3px 0 var(--pastel-dark)}
+.perks ul{list-style:none;display:grid;gap:8px;margin-bottom:4px}
+.perks li{display:flex;align-items:center;gap:10px;font-size:13.5px;line-height:1.45}
+.perks__ico{width:30px;height:30px;flex-shrink:0;display:grid;place-items:center;border-radius:50%;background:var(--pastel-light)}
+.perks__ico .icon{width:16px;height:16px}
+.comment-lock{margin-top:12px;font-size:13px}
 
 </style>
 </head>
@@ -651,7 +689,8 @@ window.HUELLAS = (() => {
     ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: true, flowType: 'pkce', detectSessionInUrl: true } })
     : null;
 
-  const status = Vue.reactive({ online: false, postsOnline: false, connecting: !!sb, uid: null, user: null, authBusy: false, hasAuthor: false, googleReady: null, emailReady: null, autoconfirm: null, recovery: false });
+  // ready: ya se sabe si hay sesión con cuenta (así la pantalla de entrada no aparece y desaparece)
+  const status = Vue.reactive({ online: false, postsOnline: false, connecting: !!sb, ready: !sb, uid: null, user: null, authBusy: false, hasAuthor: false, googleReady: null, emailReady: null, autoconfirm: null, recovery: false });
   const notify = msg => H.onError && H.onError(msg);
   const liked = new Set(state.user.liked || []);
   const followed = new Set(state.user.followed || []);
@@ -844,6 +883,7 @@ window.HUELLAS = (() => {
         session = res.data.session;
       }
       setSession(session);
+      status.ready = true;
       // ¿Está activado el proveedor Google en Supabase? (Authentication → Sign In / Providers)
       fetch(cfg.supabaseUrl + '/auth/v1/settings', { headers: { apikey: cfg.supabaseKey } })
         .then(r => r.json()).then(s => {
@@ -888,6 +928,7 @@ window.HUELLAS = (() => {
       console.warn('4 Patitas sin conexión a la base de datos:', e);
       notify('Sin conexión con la comunidad: mostrando datos guardados en este equipo');
     } finally {
+      status.ready = true;
       status.connecting = false;
       status.authBusy = false;
     }
@@ -1096,6 +1137,7 @@ const ICONS = {
   store: '<path d="M4 9.5 5.5 4h13L20 9.5M4 9.5h16V20H4zM9.5 20v-5h5v5"/>',
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   photos: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 4 3.5 2.5-2 4.5 3.5"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
 };
 const svg = (name, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.paw}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -1131,7 +1173,7 @@ const openSheet = (kind, id) => { ui.sheet = { kind, id }; document.body.style.o
 const closeSheet = () => { ui.sheet = null; document.body.style.overflow = ''; };
 // botón "atrás" de Android (lo llama el APK): cierra la hoja abierta o vuelve a Inicio; false = salir
 window.__patitasBack = () => {
-  if (ui.welcome) return false;
+  if (ui.welcome || gate.value) return false;
   if (ui.sheet) { closeSheet(); return true; }
   if (route.value.tab !== 'inicio') { go('inicio'); return true; }
   return false;
@@ -1145,6 +1187,16 @@ const toggleSave = (kind, id) => {
   const k = kind + ':' + id, i = state.user.saved.indexOf(k);
   if (i > -1) state.user.saved.splice(i, 1); else { state.user.saved.unshift(k); toast('Guardado en tu perfil'); }
 };
+
+/* ---------- cuenta o invitado ----------
+   Sin cuenta se puede todo lo que ayuda a que una mascota vuelva a casa: mirar, buscar, abrir el mapa,
+   escribir por WhatsApp, compartir, publicar avisos y comentar en avisos. Lo social y lo personal
+   (publicar fotos, comentarlas, corazones, seguir, guardar, álbumes y perfil) pide cuenta. */
+const gate = computed(() => !ui.welcome && status.ready && !status.user && !state.user.guest);
+const askAccount = (why, start = 'crear') => openSheet('cuenta', { why, start, back: ui.sheet && ui.sheet.kind !== 'cuenta' ? { ...ui.sheet } : null });
+const member = why => { if (status.user) return true; askAccount(why); return false; };
+// al cerrar sesión vuelve la pantalla de entrada
+watch(() => !!status.user, (now, before) => { if (before && !now) state.user.guest = false; });
 
 /* ---------- Inicio: la red social del barrio ---------- */
 const feed = reactive({ tab: 'todo', q: '', searching: false });
@@ -1253,7 +1305,7 @@ const pinIcon = r => L.divIcon({
 const app = createApp({
   setup() {
     const finishWelcome = () => { ui.welcome = false; state.user.welcomed = true; };
-    return { route, ui, closeSheet, finishWelcome };
+    return { route, ui, gate, closeSheet, finishWelcome };
   },
   template: `
     <div class="phone">
@@ -1269,9 +1321,10 @@ const app = createApp({
       <s-pet v-else-if="ui.sheet.kind==='pet'" :id="ui.sheet.id" />
       <s-post v-else-if="ui.sheet.kind==='post'" :id="ui.sheet.id" />
       <s-newpet v-else-if="ui.sheet.kind==='newpet'" />
-      <s-cuenta v-else-if="ui.sheet.kind==='cuenta'" />
+      <s-cuenta v-else-if="ui.sheet.kind==='cuenta'" :opts="ui.sheet.id || {}" />
     </template>
     <welcome v-if="ui.welcome" @done="finishWelcome" />
+    <v-gate v-else-if="gate" />
     <div class="toast" v-if="ui.toast" role="status">{{ ui.toast }}</div>
   `,
 });
@@ -1409,7 +1462,7 @@ app.component('v-inicio', {
       if (feed.searching) nextTick(() => search.value && search.value.focus()); else feed.q = '';
     };
     const tabs = [['todo', 'Todo'], ['parati', 'Para ti'], ['siguiendo', 'Siguiendo']];
-    return { feed, posts, tiles, lost, tabs, search, toggleSearch, go, M, openSheet };
+    return { feed, posts, tiles, lost, tabs, search, toggleSearch, go, M, openSheet, status, askAccount };
   },
   template: `
     <main class="view view--feed">
@@ -1440,6 +1493,7 @@ app.component('v-inicio', {
       <div v-else class="empty">
         <img class="empty__wide" :src="M('assets/mascota-banner.webp')" alt="" width="320" height="223">
         <template v-if="feed.q"><h2>Nada con «{{ feed.q }}»</h2><p>Prueba con otra etiqueta o el nombre de un barrio.</p></template>
+        <template v-else-if="feed.tab==='siguiendo' && !status.user"><h2>Sigue a tus mascotas favoritas</h2><p>Con una cuenta, las fotos de las mascotas que sigues aparecen aquí.</p><button class="btn" @click="askAccount('seguir mascotas')"><ico name="user" />Crear cuenta</button></template>
         <template v-else-if="feed.tab==='siguiendo'"><h2>Todavía no sigues a nadie</h2><p>Toca «Seguir» en el álbum de una mascota y sus fotos aparecerán aquí.</p><button class="btn" @click="feed.tab='todo'">Ver todas las fotos</button></template>
         <template v-else><h2>El barrio está tranquilo</h2><p>Comparte la primera foto de tu mascota.</p><button class="btn" @click="go('agregar?tipo=post')"><ico name="camera" />Agregar publicación</button></template>
       </div>
@@ -1492,7 +1546,7 @@ app.component('v-avisos', {
     // al abrir el perfil completo se cierra la tarjetita del mapa
     const openFromPeek = () => { const id = sel.value; sel.value = null; openSheet('report', id); };
     const like = r => actions.toggleLike(r);
-    return { el, f, list, count, sel, selected, filters, locate, openSheet, openFromPeek, like, isSaved, toggleSave, share, waLink, timeAgo, TYPES, BRAND, M };
+    return { el, f, list, count, sel, selected, filters, locate, openSheet, openFromPeek, like, member, isSaved, toggleSave, share, waLink, timeAgo, TYPES, BRAND, M };
   },
   template: `
     <main class="view">
@@ -1520,11 +1574,11 @@ app.component('v-avisos', {
           </div>
           <button class="post__photo" @click="openSheet('report', r.id)" :aria-label="'Abrir el aviso de ' + r.name"><media :item="r" /></button>
           <div class="post__bar">
-            <button :class="{on:r.liked}" @click="like(r)" :aria-pressed="r.liked" aria-label="Me gusta"><ico name="heart" />{{ r.likes }}</button>
+            <button :class="{on:r.liked}" @click="member('dar corazón') && like(r)" :aria-pressed="r.liked" aria-label="Me gusta"><ico name="heart" />{{ r.likes }}</button>
             <button @click="openSheet('report', r.id)"><ico name="chat" />{{ r.comments.length ? r.comments.length : 'Comentar' }}</button>
             <a v-if="r.type!=='reunido' && r.contact" :href="waLink(r)" target="_blank" rel="noopener"><ico name="whatsapp" />Escribir</a>
             <button @click="share(r.name + ' en ' + BRAND, '#/aviso/' + r.id)" aria-label="Compartir"><ico name="share" /></button>
-            <button :class="{on:isSaved('report', r.id)}" @click="toggleSave('report', r.id)" :aria-label="isSaved('report', r.id) ? 'Quitar de guardados' : 'Guardar'"><ico name="bookmark" /></button>
+            <button :class="{on:isSaved('report', r.id)}" @click="member('guardar avisos') && toggleSave('report', r.id)" :aria-label="isSaved('report', r.id) ? 'Quitar de guardados' : 'Guardar'"><ico name="bookmark" /></button>
           </div>
           <p>{{ r.desc }}</p>
           <p v-if="r.reward && r.type==='perdido'" class="post__reward">Recompensa <b>{{ r.reward }}</b></p>
@@ -1556,7 +1610,7 @@ app.component('v-agregar', {
       ['aviso', 'megaphone', 'Aviso', 'Una mascota perdida o vista. Aparece en el mapa.'],
       ['post', 'camera', 'Publicación', 'Una foto de tu mascota para Inicio y su álbum.'],
     ];
-    return { kind, choices, q, M };
+    return { kind, choices, q, M, status, askAccount };
   },
   template: `
     <main class="view">
@@ -1568,11 +1622,20 @@ app.component('v-agregar', {
       </header>
       <div class="choice" role="radiogroup" aria-label="Qué agregar">
         <button v-for="c in choices" :key="c[0]" type="button" role="radio" :aria-checked="kind===c[0]" :class="{on:kind===c[0]}" @click="kind=c[0]">
-          <span class="choice__ico"><ico :name="c[1]" /></span><strong>{{ c[2] }}</strong><span>{{ c[3] }}</span>
+          <span class="choice__ico"><ico :name="c[1]" /></span><strong>{{ c[2] }}</strong><span class="choice__text">{{ c[3] }}</span>
+          <span v-if="c[0]==='post' && !status.user" class="choice__lock"><ico name="lock" />Con cuenta</span>
         </button>
       </div>
       <f-aviso v-if="kind==='aviso'" :pet-id="q.aviso" />
-      <f-post v-else-if="kind==='post'" :pet-id="q.post" />
+      <f-post v-else-if="kind==='post' && status.user" :pet-id="q.post" />
+      <div v-else-if="kind==='post'" class="locked">
+        <span class="locked__ico"><ico name="lock" /></span>
+        <h2>Las fotos son para vecinos con cuenta</h2>
+        <p>Así cada foto de Inicio tiene a alguien detrás y queda en el álbum de su mascota. Crear la cuenta es gratis y toma un minuto.</p>
+        <button class="btn btn--green btn--full" @click="askAccount('publicar fotos')">Crear cuenta</button>
+        <button class="btn btn--light btn--full" @click="askAccount('publicar fotos', 'entrar')">Ya tengo cuenta</button>
+        <button class="textlink" @click="kind='aviso'">Mejor publico un aviso</button>
+      </div>
       <p v-else class="hand choice__hint">Elige una opción para empezar.</p>
     </main>`,
 });
@@ -1721,11 +1784,28 @@ app.component('v-perfil', {
     }).filter(Boolean));
     const onAvatar = async e => { const file = e.target.files[0]; if (file) { state.user.avatar = await readImage(file, 360); toast('Foto de perfil lista'); } };
     const tabs = [['fotos', 'Mis fotos'], ['guardados', 'Guardados'], ['avisos', 'Mis avisos']];
-    return { state, status, editing, tab, tabs, name, avatar, myPets, myPosts, myReports, albums, following, saved, onAvatar, ZONES, SPECIES, M, go, openSheet };
+    const perks = [['camera', 'Publicar fotos de tu mascota en Inicio'], ['photos', 'Armar sus álbumes y poner tu foto de perfil'], ['heart', 'Dar corazón, comentar fotos y seguir mascotas'], ['bookmark', 'Guardar avisos y fotos'], ['user', 'Ver tus avisos desde cualquier teléfono']];
+    return { state, status, editing, tab, tabs, name, avatar, myPets, myPosts, myReports, albums, following, saved, perks, onAvatar, ZONES, SPECIES, M, go, openSheet };
   },
   template: `
     <main class="view">
       <span class="badge"><span class="badge__ico"><ico name="user" /></span>03 · MI PERFIL</span>
+      <template v-if="!status.user">
+        <header class="me">
+          <span class="me__avatar me__avatar--guest" aria-hidden="true"><ico name="user" /></span>
+          <div class="me__id"><h1>Estás como invitado</h1><p class="meta">Puedes mirar el barrio, buscar y publicar avisos.</p></div>
+        </header>
+        <section class="perks">
+          <span class="eyebrow">Con una cuenta también puedes</span>
+          <ul><li v-for="x in perks" :key="x[1]"><span class="perks__ico"><ico :name="x[0]" /></span>{{ x[1] }}</li></ul>
+          <button class="btn btn--green btn--full" @click="openSheet('cuenta', { start: 'crear' })">Crear cuenta gratis</button>
+          <button class="btn btn--light btn--full" @click="openSheet('cuenta', { start: 'entrar' })">Ya tengo cuenta</button>
+        </section>
+        <div class="heading"><div><span class="eyebrow">En este teléfono</span><h2>Mis avisos</h2></div></div>
+        <report-row v-for="r in myReports" :key="r.id" :r="r" />
+        <div v-if="!myReports.length" class="empty"><h2>Sin avisos</h2><p>Si tu mascota se pierde, publícalo en Agregar y el barrio te ayuda a buscarla.</p><button class="btn" @click="go('agregar?tipo=aviso')"><ico name="megaphone" />Publicar un aviso</button></div>
+      </template>
+      <template v-else>
       <header class="me">
         <label class="me__avatar">
           <img v-if="avatar" :src="M(avatar)" alt="Tu foto de perfil">
@@ -1794,6 +1874,7 @@ app.component('v-perfil', {
         <report-row v-for="r in myReports" :key="r.id" :r="r" />
         <div v-if="!myReports.length" class="empty"><h2>Sin avisos</h2><p>Si tu mascota se pierde, publícalo en Agregar y el barrio te ayuda a buscarla.</p><button class="btn" @click="go('agregar?tipo=aviso')"><ico name="megaphone" />Publicar un aviso</button></div>
       </template>
+      </template>
     </main>`,
 });
 
@@ -1814,7 +1895,7 @@ app.component('s-report', {
       try { await actions.removeReport(props.id); closeSheet(); toast('Aviso eliminado'); } catch (e) { toast(e.message); }
     };
     const onMap = () => { closeSheet(); go('avisos'); };
-    return { r, m, comment, send, reunite, remove, confirmDel, onMap, closeSheet, canEdit, isSaved, toggleSave, share, waLink, timeAgo, TYPES, M, BRAND, openSheet, like: x => actions.toggleLike(x) };
+    return { r, m, comment, send, reunite, remove, confirmDel, onMap, closeSheet, canEdit, member, isSaved, toggleSave, share, waLink, timeAgo, TYPES, M, BRAND, openSheet, like: x => actions.toggleLike(x) };
   },
   template: `
     <section class="sheet" role="dialog" aria-modal="true" :aria-label="r ? r.name : 'Aviso'">
@@ -1844,8 +1925,8 @@ app.component('s-report', {
           <div class="actions">
             <a v-if="r.type!=='reunido'" class="btn btn--green btn--sm" :href="waLink(r)" target="_blank" rel="noopener"><ico name="whatsapp" />Escribir</a>
             <button class="iconbtn" @click="onMap"><ico name="map" />Mapa</button>
-            <button class="iconbtn" :class="{on:r.liked}" @click="like(r)" :aria-pressed="r.liked"><ico name="heart" />{{ r.likes }}</button>
-            <button class="iconbtn" :class="{on:isSaved('report', r.id)}" @click="toggleSave('report', r.id)" aria-label="Guardar"><ico name="bookmark" /></button>
+            <button class="iconbtn" :class="{on:r.liked}" @click="member('dar corazón') && like(r)" :aria-pressed="r.liked"><ico name="heart" />{{ r.likes }}</button>
+            <button class="iconbtn" :class="{on:isSaved('report', r.id)}" @click="member('guardar avisos') && toggleSave('report', r.id)" aria-label="Guardar"><ico name="bookmark" /></button>
             <button class="iconbtn" @click="share(r.name + ' en ' + BRAND, '#/aviso/' + r.id)" aria-label="Compartir"><ico name="share" /></button>
             <button v-if="r.type!=='reunido' && canEdit(r)" class="iconbtn" @click="reunite"><ico name="heart" />Ya está en casa</button>
             <button v-if="r.mine" class="iconbtn" @click="remove"><ico name="trash" />{{ confirmDel ? '¿Seguro? Toca otra vez' : '' }}</button>
@@ -1871,7 +1952,7 @@ app.component('s-pet', {
     const follow = () => actions.toggleFollow(p.value);
     const reportLost = () => { closeSheet(); go('agregar?aviso=' + props.id); };
     const addPhoto = () => { closeSheet(); go('agregar?post=' + props.id); };
-    return { p, posts, following, follow, reportLost, addPhoto, closeSheet, canEdit, isSaved, toggleSave, share, openSheet, M, BRAND, accentOf };
+    return { p, posts, following, follow, reportLost, addPhoto, closeSheet, canEdit, member, isSaved, toggleSave, share, openSheet, M, BRAND, accentOf };
   },
   template: `
     <section class="sheet" role="dialog" aria-modal="true" :aria-label="p ? p.name : 'Mascota'">
@@ -1888,9 +1969,9 @@ app.component('s-pet', {
           <p style="margin-top:12px;font-size:14.5px">{{ p.bio }}</p>
           <div class="traits" v-if="p.traits && p.traits.length"><span v-for="t in p.traits" :key="t">{{ t }}</span></div>
           <div class="actions">
-            <button v-if="!p.mine" class="btn btn--sm" :class="following ? 'btn--light' : ''" @click="follow"><ico :name="following ? 'check' : 'heart'" />{{ following ? 'Siguiendo' : 'Seguir' }} · {{ p.followers }}</button>
+            <button v-if="!p.mine" class="btn btn--sm" :class="following ? 'btn--light' : ''" @click="member('seguir mascotas') && follow()"><ico :name="following ? 'check' : 'heart'" />{{ following ? 'Siguiendo' : 'Seguir' }} · {{ p.followers }}</button>
             <button v-else class="btn btn--sm" @click="addPhoto"><ico name="camera" />Agregar foto</button>
-            <button class="iconbtn" :class="{on:isSaved('pet', p.id)}" @click="toggleSave('pet', p.id)" aria-label="Guardar"><ico name="bookmark" /></button>
+            <button class="iconbtn" :class="{on:isSaved('pet', p.id)}" @click="member('guardar mascotas') && toggleSave('pet', p.id)" aria-label="Guardar"><ico name="bookmark" /></button>
             <button class="iconbtn" @click="share(p.name + ' en ' + BRAND, '#/mascota/' + p.id)" aria-label="Compartir"><ico name="share" /></button>
             <button v-if="!p.lost && canEdit(p)" class="iconbtn" @click="reportLost"><ico name="megaphone" />Avisar que se perdió</button>
           </div>
@@ -1921,7 +2002,7 @@ app.component('s-post', {
       try { await actions.removePost(props.id); closeSheet(); toast('Publicación borrada'); } catch (e) { toast(e.message); }
     };
     const openPet = () => pet.value && openSheet('pet', pet.value.id);
-    return { p, pet, comment, confirmDel, box, like, send, remove, openPet, pieces, searchTag, petAvatar, closeSheet, isSaved, toggleSave, share, timeAgo, M, BRAND, focus: () => box.value && box.value.focus() };
+    return { p, pet, comment, confirmDel, box, like, send, remove, openPet, pieces, searchTag, petAvatar, closeSheet, member, askAccount, status, isSaved, toggleSave, share, timeAgo, M, BRAND, focus: () => member('comentar fotos') && box.value && box.value.focus() };
   },
   template: `
     <section class="sheet" role="dialog" aria-modal="true" :aria-label="p ? 'Foto de ' + (p.petName || 'una mascota') : 'Publicación'">
@@ -1941,9 +2022,9 @@ app.component('s-post', {
               <span class="meta"><ico name="heart" />{{ p.likes }}</span>
             </div>
             <div class="postsheet__btns">
-              <button class="roundbtn" :class="{on:p.liked}" @click="like" :aria-pressed="p.liked" aria-label="Me gusta"><ico name="heart" /></button>
+              <button class="roundbtn" :class="{on:p.liked}" @click="member('dar corazón') && like()" :aria-pressed="p.liked" aria-label="Me gusta"><ico name="heart" /></button>
               <button class="roundbtn" @click="focus" aria-label="Comentar"><ico name="chat" /></button>
-              <button class="roundbtn" :class="{on:isSaved('post', p.id)}" @click="toggleSave('post', p.id)" :aria-label="isSaved('post', p.id) ? 'Quitar de guardados' : 'Guardar'"><ico name="bookmark" /></button>
+              <button class="roundbtn" :class="{on:isSaved('post', p.id)}" @click="member('guardar fotos') && toggleSave('post', p.id)" :aria-label="isSaved('post', p.id) ? 'Quitar de guardados' : 'Guardar'"><ico name="bookmark" /></button>
               <button class="roundbtn" @click="share((p.petName || 'Una foto') + ' en ' + BRAND, '#/post/' + p.id)" aria-label="Compartir"><ico name="share" /></button>
             </div>
           </div>
@@ -1953,7 +2034,8 @@ app.component('s-post', {
             <h3>Comentarios</h3>
             <div v-for="(c,i) in p.comments" :key="c.id || i" class="comment"><b v-if="c.author" style="display:block;font-size:11.5px">{{ c.author }}</b>{{ c.text }} <span class="meta">· {{ timeAgo(c.date) }}</span></div>
             <p v-if="!p.comments.length" class="meta">Sé el primero en comentar.</p>
-            <form class="comment-form" @submit.prevent="send"><input ref="box" class="input" v-model="comment" maxlength="500" placeholder="Escribe algo bonito" aria-label="Comentario"><button class="btn btn--sm" aria-label="Enviar"><ico name="arrow" /></button></form>
+            <button v-if="!status.user" class="btn btn--light btn--full comment-lock" @click="askAccount('comentar fotos')"><ico name="lock" />Entra o crea tu cuenta para comentar</button>
+            <form v-else class="comment-form" @submit.prevent="send"><input ref="box" class="input" v-model="comment" maxlength="500" placeholder="Escribe algo bonito" aria-label="Comentario"><button class="btn btn--sm" aria-label="Enviar"><ico name="arrow" /></button></form>
           </div>
         </div>
       </template>
@@ -2011,27 +2093,89 @@ app.component('s-newpet', {
     </section>`,
 });
 
-/* ===================== HOJA: CUENTA ===================== */
-app.component('s-cuenta', {
-  setup() {
-    const mode = ref('crear'); // crear | entrar | olvido
+/* ===================== FORMULARIO DE CUENTA (pantalla de entrada y hoja de cuenta) ===================== */
+app.component('auth-form', {
+  props: { start: { type: String, default: 'entrar' } },
+  setup(props) {
+    const mode = ref(props.start === 'crear' ? 'crear' : 'entrar'); // crear | entrar | olvido
     const f = reactive({ name: state.user.name || '', email: '', password: '' });
     const show = ref(false), msg = ref(''), ok = ref('');
-    const mine = computed(() => state.reports.filter(r => r.mine));
+    const offline = computed(() => !status.online && !status.connecting);
     watch(mode, () => { msg.value = ''; ok.value = ''; });
     const submit = async () => {
       msg.value = ''; ok.value = '';
       try {
         if (mode.value === 'crear') {
           if (f.name.trim().length < 2 || !/^\S+@\S+\.\S{2,}$/.test(f.email) || f.password.length < 6) return (msg.value = 'Escribe tu nombre, un correo válido y una contraseña de 6 caracteres o más.');
-          const r = await auth.signUp(f); if (r.pending) ok.value = 'Te enviamos un enlace para activar tu cuenta.'; else toast('Cuenta creada. Bienvenido al barrio');
+          const r = await auth.signUp(f); if (r.pending) ok.value = 'Te enviamos un enlace a tu correo para activar la cuenta. Mientras tanto puedes seguir como invitado.'; else toast('Cuenta creada. Ya eres parte del barrio');
         } else if (mode.value === 'entrar') { await auth.signIn(f); toast('Qué bueno verte de nuevo'); }
         else { await auth.resetPassword(f.email); ok.value = 'Si ese correo tiene cuenta, te llegará un enlace.'; }
         f.password = '';
       } catch (e) { msg.value = e.message; }
     };
+    const label = computed(() => offline.value ? 'Sin conexión' : status.authBusy ? 'Un momento…' : status.connecting ? 'Conectando…' : ({ crear: 'Crear cuenta', entrar: 'Entrar', olvido: 'Enviar enlace' })[mode.value]);
+    return { mode, f, show, msg, ok, offline, label, submit, status };
+  },
+  template: `
+    <form class="eauth" @submit.prevent="submit" novalidate>
+      <div v-if="mode!=='olvido'" class="eauth__tabs" role="tablist" aria-label="Cuenta">
+        <button type="button" role="tab" :aria-selected="mode==='entrar'" :class="{on:mode==='entrar'}" @click="mode='entrar'">Entrar</button>
+        <button type="button" role="tab" :aria-selected="mode==='crear'" :class="{on:mode==='crear'}" @click="mode='crear'">Crear cuenta</button>
+      </div>
+      <p v-else class="meta">Escribe tu correo y te mandamos un enlace para elegir una contraseña nueva.</p>
+      <p v-if="offline" class="eauth__offline" role="status">Sin conexión con la comunidad. Por ahora puedes seguir como invitado y entrar cuando vuelva internet.</p>
+      <input v-if="mode==='crear'" class="input" v-model="f.name" autocomplete="name" placeholder="Tu nombre" aria-label="Tu nombre">
+      <input class="input" v-model="f.email" type="email" inputmode="email" autocomplete="email" placeholder="tucorreo@gmail.com" aria-label="Correo">
+      <div class="eauth__pass" v-if="mode!=='olvido'">
+        <input class="input" v-model="f.password" :type="show ? 'text' : 'password'" :autocomplete="mode==='entrar' ? 'current-password' : 'new-password'" placeholder="Contraseña" aria-label="Contraseña">
+        <button type="button" class="eauth__eye" @click="show=!show" :aria-label="show ? 'Ocultar contraseña' : 'Mostrar contraseña'"><ico :name="show ? 'eyeOff' : 'eye'" /></button>
+      </div>
+      <p v-if="msg" class="error" role="alert">{{ msg }}</p>
+      <p v-if="ok" class="ok" role="status">{{ ok }}</p>
+      <button class="btn btn--green btn--full" :disabled="status.authBusy || status.connecting || offline">{{ label }}</button>
+      <button v-if="mode==='entrar'" type="button" class="textlink" @click="mode='olvido'">¿Olvidaste tu contraseña?</button>
+      <button v-if="mode==='olvido'" type="button" class="textlink" @click="mode='entrar'">Volver</button>
+    </form>`,
+});
+
+/* ===================== PANTALLA DE ENTRADA: cuenta o invitado ===================== */
+app.component('v-gate', {
+  setup() {
+    const asGuest = () => { state.user.guest = true; toast('Entraste como invitado'); };
+    return { asGuest, M };
+  },
+  template: `
+    <div class="gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+      <div class="gate__poster">
+        <p class="wordmark gate__brand" aria-hidden="true">Cuatro pat<span class="wordmark__i">ı</span>tas</p>
+        <img :src="M('assets/mascota.webp')" alt="Una gata calicó y un perro blanco con sombreros de paja" width="480" height="364">
+      </div>
+      <section class="gate__card">
+        <span class="jp-tag">入口 · LA ENTRADA</span>
+        <h1 id="gate-title">Entra al barrio.</h1>
+        <p class="meta">Con tu cuenta publicas fotos de tu mascota, armas sus álbumes y llevas tus avisos a cualquier teléfono.</p>
+        <auth-form start="entrar" />
+        <div class="gate__or"><span>o</span></div>
+        <button class="btn btn--light btn--full" @click="asGuest">Continuar como invitado<ico name="arrow" /></button>
+        <ul class="gate__guest" aria-label="Qué puedes hacer como invitado">
+          <li class="yes"><ico name="check" />Mirar fotos, avisos y el mapa</li>
+          <li class="yes"><ico name="check" />Publicar y comentar avisos, escribir por WhatsApp</li>
+          <li class="no"><ico name="lock" />Publicar o comentar fotos, dar corazón, seguir, guardar y tener perfil</li>
+        </ul>
+      </section>
+    </div>`,
+});
+
+/* ===================== HOJA: CUENTA ===================== */
+app.component('s-cuenta', {
+  // opts: { why: 'publicar fotos', start: 'crear' | 'entrar', back: hoja a la que volver al entrar }
+  props: { opts: { type: Object, default: () => ({}) } },
+  setup(props) {
+    const mine = computed(() => state.reports.filter(r => r.mine));
+    // al entrar desde un candado se vuelve a lo que la persona estaba mirando
+    watch(() => status.user, u => { if (u && props.opts.back) openSheet(props.opts.back.kind, props.opts.back.id); });
     const again = () => { closeSheet(); ui.welcome = true; };
-    return { mode, f, show, msg, ok, submit, status, auth, mine, closeSheet, again, openSheet, timeAgo };
+    return { status, auth, mine, closeSheet, again };
   },
   template: `
     <section class="sheet" role="dialog" aria-modal="true" aria-label="Mi cuenta">
@@ -2047,34 +2191,20 @@ app.component('s-cuenta', {
           <p v-if="!mine.length" class="meta">Todavía no publicaste avisos.</p>
           <button class="btn btn--light btn--full" style="margin-top:18px" :disabled="status.authBusy" @click="auth.logout()"><ico name="logout" />Cerrar sesión</button>
         </template>
-        <template v-else-if="status.online || status.connecting">
+        <template v-else>
+          <div v-if="opts.why" class="needs"><ico name="lock" /><p>Para <b>{{ opts.why }}</b> necesitas una cuenta. Es gratis y toma un minuto.</p></div>
           <h2 style="font-size:26px;margin:14px 0 6px">Únete al barrio.</h2>
-          <p class="meta">Ver y publicar no requiere cuenta. Con una cuenta, tus avisos te acompañan en cualquier teléfono.</p>
-          <form class="eauth" @submit.prevent="submit" novalidate>
-            <div v-if="mode!=='olvido'" class="eauth__tabs" role="tablist">
-              <button type="button" :class="{on:mode==='crear'}" @click="mode='crear'">Crear cuenta</button>
-              <button type="button" :class="{on:mode==='entrar'}" @click="mode='entrar'">Ya tengo cuenta</button>
-            </div>
-            <input v-if="mode==='crear'" class="input" v-model="f.name" autocomplete="name" placeholder="Tu nombre" aria-label="Tu nombre">
-            <input class="input" v-model="f.email" type="email" inputmode="email" autocomplete="email" placeholder="tucorreo@gmail.com" aria-label="Correo">
-            <div class="eauth__pass" v-if="mode!=='olvido'">
-              <input class="input" v-model="f.password" :type="show ? 'text' : 'password'" :autocomplete="mode==='entrar' ? 'current-password' : 'new-password'" placeholder="Contraseña" aria-label="Contraseña">
-              <button type="button" class="eauth__eye" @click="show=!show" :aria-label="show ? 'Ocultar contraseña' : 'Mostrar contraseña'"><ico :name="show ? 'eyeOff' : 'eye'" /></button>
-            </div>
-            <p v-if="msg" class="error" role="alert">{{ msg }}</p>
-            <p v-if="ok" class="ok" role="status">{{ ok }}</p>
-            <button class="btn btn--green btn--full" :disabled="status.authBusy || status.connecting">{{ status.authBusy ? 'Un momento…' : ({crear:'Crear cuenta',entrar:'Entrar',olvido:'Enviar enlace'})[mode] }}</button>
-            <button v-if="mode==='entrar'" type="button" class="textlink" @click="mode='olvido'">¿Olvidaste tu contraseña?</button>
-            <button v-if="mode==='olvido'" type="button" class="textlink" @click="mode='entrar'">Volver</button>
-          </form>
+          <p class="meta">Como invitado puedes mirar, buscar y publicar avisos. Con una cuenta también publicas fotos, comentas, sigues mascotas y guardas lo que te gusta.</p>
+          <auth-form :start="opts.start || 'crear'" />
+          <button v-if="opts.why" class="textlink" style="display:block;margin:4px auto 0" @click="closeSheet">Ahora no</button>
         </template>
-        <p v-else class="meta" style="margin-top:14px">Sin conexión: lo que publiques se guarda en este teléfono.</p>
 
         <hr class="rule">
         <span class="eyebrow">Sobre 4 Patitas</span>
         <div class="faq">
           <details><summary>¿Es gratis?</summary><p>Sí. Ver el mapa, publicar avisos y compartir fotos de tu mascota es gratis.</p></details>
-          <details><summary>¿Qué hago si encuentro una mascota?</summary><p>Toca Agregar, elige Aviso y luego "Lo encontré". Marca el lugar en el mapa y sube una foto. Si coincide con un aviso, te lo mostramos.</p></details>
+          <details><summary>¿Qué puedo hacer sin cuenta?</summary><p>Mirar las fotos, los avisos y el mapa, escribir por WhatsApp, compartir, publicar avisos y comentar en ellos. Para publicar o comentar fotos, dar corazón, seguir mascotas, guardar y tener perfil con álbumes necesitas una cuenta.</p></details>
+          <details><summary>¿Qué hago si encuentro una mascota?</summary><p>Toca Agregar, elige Aviso y luego "Lo encontré". Marca el lugar en el mapa y sube una foto. Si coincide con un aviso, te lo mostramos. No necesitas cuenta.</p></details>
           <details><summary>¿Mi WhatsApp es público?</summary><p>Solo aparece un botón para escribirte en los avisos que tú publicas. Puedes borrarlos cuando quieras.</p></details>
           <details><summary>¿Dónde funciona?</summary><p>En Santa Cruz de la Sierra y alrededores: Urubó, Warnes y La Guardia.</p></details>
         </div>

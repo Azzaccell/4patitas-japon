@@ -9,7 +9,8 @@
     ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: true, flowType: 'pkce', detectSessionInUrl: true } })
     : null;
 
-  const status = Vue.reactive({ online: false, postsOnline: false, connecting: !!sb, uid: null, user: null, authBusy: false, hasAuthor: false, googleReady: null, emailReady: null, autoconfirm: null, recovery: false });
+  // ready: ya se sabe si hay sesión con cuenta (así la pantalla de entrada no aparece y desaparece)
+  const status = Vue.reactive({ online: false, postsOnline: false, connecting: !!sb, ready: !sb, uid: null, user: null, authBusy: false, hasAuthor: false, googleReady: null, emailReady: null, autoconfirm: null, recovery: false });
   const notify = msg => H.onError && H.onError(msg);
   const liked = new Set(state.user.liked || []);
   const followed = new Set(state.user.followed || []);
@@ -202,6 +203,7 @@
         session = res.data.session;
       }
       setSession(session);
+      status.ready = true;
       // ¿Está activado el proveedor Google en Supabase? (Authentication → Sign In / Providers)
       fetch(cfg.supabaseUrl + '/auth/v1/settings', { headers: { apikey: cfg.supabaseKey } })
         .then(r => r.json()).then(s => {
@@ -246,6 +248,7 @@
       console.warn('4 Patitas sin conexión a la base de datos:', e);
       notify('Sin conexión con la comunidad: mostrando datos guardados en este equipo');
     } finally {
+      status.ready = true;
       status.connecting = false;
       status.authBusy = false;
     }
