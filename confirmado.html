@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'sha256-tMSxFNbRFv1+alBz00aslHQyE8HnRxnS0cH7ggd0tZA='; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Cuatro Patitas · Correo confirmado</title>
+<link rel="icon" type="image/png" href="assets/icono.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700&display=swap">
+<style>
+  :root { --paper: #f4ecdc; --ink: #3a2418; --muted: #86624f; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    display: grid; place-items: center; padding: 24px max(24px, env(safe-area-inset-left)) 24px max(24px, env(safe-area-inset-right));
+    background: var(--paper); color: var(--ink); text-align: center;
+    font-family: 'Quicksand', 'Nunito', -apple-system, 'Segoe UI', sans-serif;
+  }
+  main { display: grid; justify-items: center; gap: 22px; }
+  img { width: 132px; height: 132px; border-radius: 30px; box-shadow: 0 12px 30px -16px rgba(58, 36, 24, .45); }
+  h1 { font-size: 30px; font-weight: 700; line-height: 1.2; }
+  p { margin-top: 8px; font-size: 18px; font-weight: 600; color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <a href="./" aria-label="Abrir Cuatro Patitas"><img src="assets/icono.png" alt="Cuatro Patitas" width="132" height="132"></a>
+  <div id="ok"><h1>¡Gracias!</h1><p>Tu correo ha sido confirmado.</p></div>
+  <div id="error" hidden><h1>Este enlace ya no sirve</h1><p>Ya se usó o venció.</p></div>
+</main>
+<script>
+  // Supabase avisa en la dirección si el enlace venció o ya se usó; el código de un solo uso no queda a la vista
+  var fallo = /error/.test(location.hash + location.search);
+  document.getElementById('ok').hidden = fallo;
+  document.getElementById('error').hidden = !fallo;
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+</script>
+</body>
+</html>

@@ -21,7 +21,7 @@ seguir, guardar y tener perfil con álbumes piden cuenta.
 - **Mapa:** usa las teselas de Esri. Si no cargan, pasa a OpenStreetMap. Sin internet, dibuja Santa Cruz con anillos, radiales y el río Piraí.
 - **Base de datos:** usa la misma de Supabase que 4 Patitas (avisos, mascotas y comentarios en vivo). La cuenta es por correo.
 - **Publicaciones de Inicio:** necesitan las tablas de `supabase/publicaciones.sql` (correrlo una vez en Supabase → SQL Editor). Mientras no existan, cada teléfono guarda sus publicaciones solo para sí. Esas tablas solo aceptan fotos, comentarios y corazones de personas con cuenta.
-- **Seguridad:** ver [`SEGURIDAD.md`](SEGURIDAD.md). Después de `publicaciones.sql`, correr `supabase/seguridad.sql` (denuncias, límites contra spam y borrado de cuenta). `supabase/revisar-seguridad.sql` solo lee y muestra cómo están protegidas las tablas. La página pública de privacidad es `privacidad.html`.
+- **Seguridad:** ver [`SEGURIDAD.md`](SEGURIDAD.md). Después de `publicaciones.sql`, correr `supabase/seguridad.sql` (denuncias, límites contra spam y borrado de cuenta). `supabase/revisar-seguridad.sql` solo lee y muestra cómo están protegidas las tablas. La página pública de privacidad es `privacidad.html`. El enlace del correo de confirmación abre `confirmado.html` (solo el logo y «¡Gracias!»).
 - **Patrocinios:** se cargan en `src/js/config.js` (`sponsors` y `adsWhatsApp`). Con la lista vacía, Inicio muestra espacios disponibles.
 
 ## Desarrollo

@@ -54,4 +54,9 @@ ${scripts.map(c => `<script>${c}</script>`).join('\n')}
 </html>
 `;
 fs.writeFileSync(path.join(__dirname, 'index.html'), html);
+
+// confirmado.html (página del enlace de confirmación de correo): su CSP lleva la huella de su único script
+const conf = r('confirmado.html');
+const confJs = (/<script>([\s\S]*?)<\/script>/.exec(conf) || [])[1];
+if (confJs !== undefined) fs.writeFileSync(path.join(__dirname, 'confirmado.html'), conf.replace(/script-src [^;]+;/, `script-src ${sha(confJs)};`));
 console.log('index.html', (Buffer.byteLength(html) / 1024).toFixed(0) + ' KB ·', files.length, 'imágenes incrustadas');
