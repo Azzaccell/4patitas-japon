@@ -157,7 +157,8 @@
       const { data: { session } } = await sb.auth.getSession();
       let res;
       if (session && session.user.is_anonymous) {
-        res = await sb.auth.updateUser({ email: email.trim(), password, data });
+        // el enlace de confirmación vuelve a la app (sin esto, Supabase usa su Site URL)
+        res = await sb.auth.updateUser({ email: email.trim(), password, data }, { emailRedirectTo: cfg.siteUrl || redirectTo() });
         if (res.error) throw res.error;
         // con "Confirm email" activado, el correo queda pendiente hasta que se confirme
         if (res.data.user && res.data.user.is_anonymous) return { pending: true };
