@@ -183,7 +183,7 @@ h1,h2,h3{font-family:var(--serif);font-weight:500;line-height:1.28;letter-spacin
 .match .report__img{width:46px;height:46px;border-radius:50%}
 .comments{margin-top:22px;padding-top:16px;border-top:1px solid var(--line)}
 .comments h3{font-size:21px}
-.comment{font-size:13.5px;margin-top:10px;padding:9px 13px;background:var(--white);border:1px solid var(--line);border-radius:14px 14px 14px 4px}
+.comment{position:relative;font-size:13.5px;margin-top:10px;padding:9px 38px 9px 13px;background:var(--white);border:1px solid var(--line);border-radius:14px 14px 14px 4px}
 .comment-form{display:flex;gap:8px;margin-top:12px}
 .input{width:100%;min-height:46px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:var(--white);font-size:16px;outline:none}
 .input:focus{border-color:var(--ink)}
@@ -420,7 +420,8 @@ textarea.input{min-height:96px;resize:vertical}
 /* =====================================================================
    ENTRADA: cuenta o invitado
    ===================================================================== */
-.gate{position:fixed;z-index:80;inset:0;max-width:480px;margin:0 auto;overflow-y:auto;overscroll-behavior:contain;background:var(--paper);animation:fade .3s}
+/* debajo de las hojas (70), para poder abrir las reglas desde la entrada */
+.gate{position:fixed;z-index:65;inset:0;max-width:480px;margin:0 auto;overflow-y:auto;overscroll-behavior:contain;background:var(--paper);animation:fade .3s}
 /* el suelo terracota de la ilustración sigue de borde a borde aunque la imagen sea más angosta */
 .gate__poster{--art:min(24vh,240px);display:grid;justify-items:center;padding-top:calc(16px + var(--safe-t));background:linear-gradient(to top,var(--ground) calc(var(--art) * .132),var(--sky) 0)}
 .gate__poster img{width:auto;max-width:100%;height:var(--art);-webkit-mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent);mask-image:linear-gradient(to right,transparent,#000 9%,#000 91%,transparent)}
@@ -454,3 +455,34 @@ textarea.input{min-height:96px;resize:vertical}
 .perks__ico{width:30px;height:30px;flex-shrink:0;display:grid;place-items:center;border-radius:50%;background:var(--pastel-light)}
 .perks__ico .icon{width:16px;height:16px}
 .comment-lock{margin-top:12px;font-size:13px}
+
+/* =====================================================================
+   SEGURIDAD: denuncias, estafas, privacidad
+   ===================================================================== */
+.comment__flag{position:absolute;top:3px;right:3px;width:34px;height:34px;display:grid;place-items:center;color:var(--muted);border-radius:50%}
+.comment__flag .icon{width:15px;height:15px}
+.report-flag{display:inline-flex;align-items:center;gap:6px;margin-top:14px;color:var(--muted);font-weight:500}
+.report-flag .icon{width:15px;height:15px}
+.safety{display:flex;align-items:flex-start;gap:10px;margin-top:16px;padding:11px 13px;border-radius:10px;background:#f7efcf;color:#62572f;font-size:12.5px;line-height:1.5}
+.safety .icon{width:19px;height:19px;margin-top:1px}
+.field-note{display:flex;align-items:center;gap:8px;margin-top:-8px;font-size:11.5px;color:var(--muted)}
+.field-note .icon{width:15px;height:15px;color:var(--bandana)}
+.gate__legal{font-size:11.5px;color:var(--muted);line-height:1.5}
+.gate__legal .textlink{font-size:inherit;min-height:0;padding:0;font-weight:600}
+.rowlink{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;margin-top:6px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+.rowlink span{flex:1}
+.rowlink .icon:last-child{width:17px;color:var(--muted)}
+.privacy-actions{display:grid;justify-items:start;gap:2px;margin-top:8px}
+.privacy-actions .textlink{justify-self:start;text-align:left}
+.textlink.danger{color:var(--hanko)}
+.reasons{display:grid;gap:6px}
+.reasons button{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:var(--white);font-size:14px;text-align:left}
+.reasons i{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--ink);flex-shrink:0}
+.reasons button.on{border-color:var(--ink);background:var(--pastel-light)}
+.reasons button.on i{background:var(--hanko);box-shadow:inset 0 0 0 3px var(--white)}
+.check{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;line-height:1.5;cursor:pointer}
+.check input{width:20px;height:20px;margin-top:1px;accent-color:var(--hanko);flex-shrink:0}
+.reglas h2{font-size:28px;margin:14px 0 2px}
+.reglas h3{font-size:18px;margin:20px 0 6px}
+.reglas ol,.reglas ul{display:grid;gap:6px;padding-left:20px;font-size:14px}
+.reglas p{font-size:14px;margin-top:8px}

@@ -39,6 +39,8 @@ const ICONS = {
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   photos: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 17 5-4.5 4 3.5 2.5-2 4.5 3.5"/>',
   lock: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  flag: '<path d="M5.5 21V4M5.5 4.5h11l-2.2 4 2.2 4h-11"/>',
+  shield: '<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.2 7.5 9.5 4.3-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m9 12 2 2 4-4"/>',
 };
 const svg = (name, cls = 'icon') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ICONS.paw}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -96,6 +98,16 @@ const toggleSave = (kind, id) => {
 const gate = computed(() => !ui.welcome && status.ready && !status.user && !state.user.guest);
 const askAccount = (why, start = 'crear') => openSheet('cuenta', { why, start, back: ui.sheet && ui.sheet.kind !== 'cuenta' ? { ...ui.sheet } : null });
 const member = why => { if (status.user) return true; askAccount(why); return false; };
+/* denuncias: lo denunciado deja de verse en este teléfono y queda para revisión */
+const blockKey = x => (x && x.ownerId) || (x && x.author ? 'nombre:' + x.author : '');
+const blocked = x => !!state.user.blocked.length && !x.mine && state.user.blocked.includes(blockKey(x));
+const hidden = (kind, id, x) => state.user.hidden.includes(kind + ':' + id) || (!!x && blocked(x));
+// x: lo denunciado, para ofrecer bloquear a quien lo publicó
+const denounce = (kind, id, x) => openSheet('denuncia', {
+  kind, id, back: ui.sheet && ui.sheet.kind !== 'denuncia' ? { ...ui.sheet } : null,
+  who: x && !x.mine && blockKey(x) ? { key: blockKey(x), name: x.author || '' } : null,
+});
+const visibleComments = (list, kind) => list.filter(c => !c.oculto && !hidden(kind, c.id, c));
 // al cerrar sesión vuelve la pantalla de entrada
 watch(() => !!status.user, (now, before) => { if (before && !now) state.user.guest = false; });
 
@@ -140,7 +152,7 @@ const share = async (title, hash) => {
   try { if (navigator.share) { await navigator.share({ title, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(url); toast('Enlace copiado'); } catch (e) { toast('Copia este enlace: ' + url); }
 };
-const waLink = r => `https://wa.me/${r.contact}?text=${encodeURIComponent(`Hola, te escribo por "${r.name}" en ${BRAND}`)}`;
+const waLink = r => `https://wa.me/${String(r.contact || '').replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, te escribo por "${r.name}" en ${BRAND}`)}`;
 const statusStyle = t => ({ '--bg': TYPES[t].color, '--fg': TYPES[t].fg });
 
 /* foto → JPEG comprimido */
@@ -223,6 +235,8 @@ const app = createApp({
       <s-post v-else-if="ui.sheet.kind==='post'" :id="ui.sheet.id" />
       <s-newpet v-else-if="ui.sheet.kind==='newpet'" />
       <s-cuenta v-else-if="ui.sheet.kind==='cuenta'" :opts="ui.sheet.id || {}" />
+      <s-denuncia v-else-if="ui.sheet.kind==='denuncia'" :opts="ui.sheet.id" />
+      <s-reglas v-else-if="ui.sheet.kind==='reglas'" />
     </template>
     <welcome v-if="ui.welcome" @done="finishWelcome" />
     <v-gate v-else-if="gate" />
@@ -342,7 +356,7 @@ app.component('v-inicio', {
     const followed = computed(() => state.user.followed || []);
     const posts = computed(() => {
       const q = feed.q.trim().toLowerCase();
-      let list = state.posts.filter(p => !q || (q.startsWith('#')
+      let list = state.posts.filter(p => !hidden('post', p.id, p) && !(p.oculto && !p.mine)).filter(p => !q || (q.startsWith('#')
         ? tagsOf(p.text).includes(q)
         : `${p.text} ${p.petName} ${p.author} ${p.zone}`.toLowerCase().includes(q)));
       if (feed.tab === 'siguiendo') list = list.filter(p => p.petId && followed.value.includes(p.petId));
@@ -356,7 +370,7 @@ app.component('v-inicio', {
       if (out.length && !feed.q && feed.tab !== 'siguiendo') out.splice(Math.min(6, out.length), 0, { key: 'ads' });
       return out;
     });
-    const lost = computed(() => state.reports.filter(r => r.type === 'perdido').sort((a, b) => b.date - a.date).slice(0, 12));
+    const lost = computed(() => state.reports.filter(r => r.type === 'perdido' && !hidden('aviso', r.id, r)).sort((a, b) => b.date - a.date).slice(0, 12));
     const search = ref(null);
     const toggleSearch = () => {
       feed.searching = !feed.searching;
@@ -410,6 +424,7 @@ app.component('v-avisos', {
     const el = ref(null), sel = ref(null);
     const f = reactive({ type: 'todos', q: '', view: 'cuaderno' });
     const list = computed(() => state.reports
+      .filter(r => !hidden('aviso', r.id, r))
       .filter(r => f.type === 'todos' || r.type === f.type)
       .filter(r => !f.q || `${r.name} ${r.breed} ${r.zone} ${r.color}`.toLowerCase().includes(f.q.toLowerCase()))
       .sort((a, b) => b.date - a.date));
@@ -594,17 +609,18 @@ app.component('f-aviso', {
       <div class="field"><span>Especie</span>
         <div class="species"><button v-for="(icon,k) in SPECIES" :key="k" type="button" class="chip" :class="{on:form.species===k}" @click="form.species=k"><ico :name="icon" />{{ k }}</button></div>
       </div>
-      <div class="field"><label for="p-name">{{ form.type==='perdido' ? 'Nombre de tu mascota' : 'Título corto' }}</label><input id="p-name" class="input" v-model="form.name" :placeholder="form.type==='perdido' ? 'Ej. Toby' : 'Ej. Perrito café con collar'"></div>
+      <div class="field"><label for="p-name">{{ form.type==='perdido' ? 'Nombre de tu mascota' : 'Título corto' }}</label><input id="p-name" class="input" maxlength="60" v-model="form.name" :placeholder="form.type==='perdido' ? 'Ej. Toby' : 'Ej. Perrito café con collar'"></div>
       <div class="grid2">
-        <div class="field"><label for="p-breed">Raza</label><input id="p-breed" class="input" v-model="form.breed" placeholder="Mestizo"></div>
-        <div class="field"><label for="p-color">Color y señas</label><input id="p-color" class="input" v-model="form.color" placeholder="Collar rojo"></div>
+        <div class="field"><label for="p-breed">Raza</label><input id="p-breed" class="input" maxlength="40" v-model="form.breed" placeholder="Mestizo"></div>
+        <div class="field"><label for="p-color">Color y señas</label><input id="p-color" class="input" maxlength="60" v-model="form.color" placeholder="Collar rojo"></div>
       </div>
-      <div class="field"><label for="p-desc">Cuéntanos un poco más</label><textarea id="p-desc" class="input" v-model="form.desc" placeholder="¿Cómo es su carácter? ¿Hacia dónde iba?"></textarea></div>
+      <div class="field"><label for="p-desc">Cuéntanos un poco más</label><textarea id="p-desc" class="input" maxlength="600" v-model="form.desc" placeholder="¿Cómo es su carácter? ¿Hacia dónde iba?"></textarea></div>
       <div class="field"><label for="p-zone">Barrio <small>· luego ajusta el punto en el mapa</small></label><select id="p-zone" class="input" v-model="form.zone"><option v-for="(_,z) in ZONES" :key="z">{{ z }}</option></select></div>
       <div class="pickmap" ref="pick"></div>
+      <p class="field-note"><ico name="shield" />En el mapa se publica un punto aproximado, a unos 150 m. Nunca tu ubicación exacta.</p>
       <div class="grid2">
-        <div class="field" v-if="form.type==='perdido'"><label for="p-reward">Recompensa <small>opcional</small></label><input id="p-reward" class="input" v-model="form.reward" placeholder="Bs 300"></div>
-        <div class="field" :style="form.type!=='perdido' ? 'grid-column:1/-1' : ''"><label for="p-wa">Tu WhatsApp</label><input id="p-wa" class="input" v-model="form.contact" inputmode="tel" placeholder="7XXXXXXX"></div>
+        <div class="field" v-if="form.type==='perdido'"><label for="p-reward">Recompensa <small>opcional</small></label><input id="p-reward" class="input" maxlength="30" v-model="form.reward" placeholder="Bs 300"></div>
+        <div class="field" :style="form.type!=='perdido' ? 'grid-column:1/-1' : ''"><label for="p-wa">Tu WhatsApp</label><input id="p-wa" class="input" maxlength="16" v-model="form.contact" inputmode="tel" autocomplete="tel" placeholder="7XXXXXXX"><small>Se verá en el aviso para que te puedan escribir.</small></div>
       </div>
       <p v-if="err" class="error" role="alert">{{ err }}</p>
       <button class="btn btn--green btn--full" :disabled="sending">{{ sending ? 'Publicando…' : 'Publicar aviso en el mapa' }}<ico name="arrow" /></button>
@@ -657,11 +673,11 @@ app.component('f-post', {
           </button>
           <button type="button" class="chip" :class="{on:!form.petId}" @click="form.petId=''"><ico name="paw" />{{ mine.length ? 'Otra' : 'Escribir su nombre' }}</button>
         </div>
-        <input v-if="!form.petId" class="input" v-model="form.petName" placeholder="Nombre de la mascota" aria-label="Nombre de la mascota">
+        <input v-if="!form.petId" class="input" maxlength="40" v-model="form.petName" placeholder="Nombre de la mascota" aria-label="Nombre de la mascota">
         <small v-if="!mine.length">Agrega tus mascotas en tu <a href="#/perfil" class="textlink" @click.prevent="openSheet('newpet')">perfil</a> y cada foto quedará en su álbum.</small>
       </div>
       <div class="field"><label for="po-text">Cuéntanos algo</label><textarea id="po-text" class="input" v-model="form.text" maxlength="1000" placeholder="Paseo de domingo por el Parque Urbano #perros"></textarea><small>Usa #etiquetas para que otros encuentren tu foto.</small></div>
-      <div class="field" v-if="needsName"><label for="po-author">Tu nombre</label><input id="po-author" class="input" v-model="form.author" autocomplete="name" placeholder="Así te verán en Inicio"></div>
+      <div class="field" v-if="needsName"><label for="po-author">Tu nombre</label><input id="po-author" class="input" maxlength="40" v-model="form.author" autocomplete="name" placeholder="Así te verán en Inicio"></div>
       <p v-if="err" class="error" role="alert">{{ err }}</p>
       <button class="btn btn--green btn--full" :disabled="sending">{{ sending ? 'Publicando…' : 'Publicar en Inicio' }}<ico name="arrow" /></button>
     </form>`,
@@ -727,7 +743,7 @@ app.component('v-perfil', {
       </div>
       <form v-if="editing" class="form me__edit" @submit.prevent="editing=false">
         <div class="grid2">
-          <div class="field"><label for="me-name">Tu nombre</label><input id="me-name" class="input" v-model.trim="state.user.name" autocomplete="name" placeholder="Ej. Valeria"></div>
+          <div class="field"><label for="me-name">Tu nombre</label><input id="me-name" class="input" maxlength="40" v-model.trim="state.user.name" autocomplete="name" placeholder="Ej. Valeria"></div>
           <div class="field"><label for="me-zone">Tu barrio</label><select id="me-zone" class="input" v-model="state.user.zone"><option value="">Elegir</option><option v-for="(_,z) in ZONES" :key="z">{{ z }}</option></select></div>
         </div>
         <button class="btn btn--sm">Listo</button>
@@ -784,7 +800,7 @@ app.component('s-report', {
   props: ['id'],
   setup(props) {
     const r = computed(() => state.reports.find(x => x.id === props.id));
-    const m = computed(() => (r.value ? matches(r.value).slice(0, 3) : []));
+    const m = computed(() => (r.value ? matches(r.value).filter(x => !hidden('aviso', x.r.id, x.r)).slice(0, 3) : []));
     const comment = ref(''), confirmDel = ref(false);
     const send = async () => {
       const text = comment.value.trim(); if (!text) return;
@@ -796,7 +812,7 @@ app.component('s-report', {
       try { await actions.removeReport(props.id); closeSheet(); toast('Aviso eliminado'); } catch (e) { toast(e.message); }
     };
     const onMap = () => { closeSheet(); go('avisos'); };
-    return { r, m, comment, send, reunite, remove, confirmDel, onMap, closeSheet, canEdit, member, isSaved, toggleSave, share, waLink, timeAgo, TYPES, M, BRAND, openSheet, like: x => actions.toggleLike(x) };
+    return { r, m, comment, send, reunite, remove, confirmDel, onMap, closeSheet, canEdit, member, denounce, visibleComments, isSaved, toggleSave, share, waLink, timeAgo, TYPES, M, BRAND, openSheet, like: x => actions.toggleLike(x) };
   },
   template: `
     <section class="sheet" role="dialog" aria-modal="true" :aria-label="r ? r.name : 'Aviso'">
@@ -832,14 +848,16 @@ app.component('s-report', {
             <button v-if="r.type!=='reunido' && canEdit(r)" class="iconbtn" @click="reunite"><ico name="heart" />Ya está en casa</button>
             <button v-if="r.mine" class="iconbtn" @click="remove"><ico name="trash" />{{ confirmDel ? '¿Seguro? Toca otra vez' : '' }}</button>
           </div>
+          <p v-if="r.type!=='reunido'" class="safety"><ico name="shield" /><span><b>Cuidado con las estafas.</b> Nunca pagues por adelantado ni compartas códigos que te lleguen por SMS. Para entregar o recibir una mascota, encuéntrense de día en un lugar público.</span></p>
           <div class="comments" v-if="r.type!=='reunido'">
             <h3>¿Lo viste?</h3>
-            <div v-for="(c,i) in r.comments" :key="i" class="comment"><b v-if="c.author" style="display:block;font-size:11.5px">{{ c.author }}</b>{{ c.text }} <span class="meta">· {{ timeAgo(c.date) }}</span></div>
-            <form class="comment-form" @submit.prevent="send"><input class="input" v-model="comment" placeholder="Ej. Lo vi por el 3er anillo" aria-label="Comentario"><button class="btn btn--sm" aria-label="Enviar"><ico name="arrow" /></button></form>
+            <div v-for="(c,i) in visibleComments(r.comments, 'comentario')" :key="c.id || i" class="comment"><b v-if="c.author" style="display:block;font-size:11.5px">{{ c.author }}</b>{{ c.text }} <span class="meta">· {{ timeAgo(c.date) }}</span><button class="comment__flag" @click="denounce('comentario', c.id, c)" aria-label="Denunciar comentario"><ico name="flag" /></button></div>
+            <form class="comment-form" @submit.prevent="send"><input class="input" v-model="comment" maxlength="500" placeholder="Ej. Lo vi por el 3er anillo" aria-label="Comentario"><button class="btn btn--sm" aria-label="Enviar"><ico name="arrow" /></button></form>
           </div>
         </div>
       </template>
-      <div v-else class="sheet__body"><div class="empty"><h2>Este aviso ya no está</h2></div></div>
+      <div v-if="r && !r.mine" class="sheet__body"><button class="textlink report-flag" @click="denounce('aviso', r.id, r)"><ico name="flag" />Denunciar este aviso</button></div>
+      <div v-if="!r" class="sheet__body"><div class="empty"><h2>Este aviso ya no está</h2></div></div>
     </section>`,
 });
 
@@ -848,7 +866,7 @@ app.component('s-pet', {
   props: ['id'],
   setup(props) {
     const p = computed(() => state.pets.find(x => x.id === props.id));
-    const posts = computed(() => state.posts.filter(x => x.petId === props.id).sort((a, b) => b.date - a.date));
+    const posts = computed(() => state.posts.filter(x => x.petId === props.id && !hidden('post', x.id, x) && !(x.oculto && !x.mine)).sort((a, b) => b.date - a.date));
     const following = computed(() => (state.user.followed || []).includes(props.id));
     const follow = () => actions.toggleFollow(p.value);
     const reportLost = () => { closeSheet(); go('agregar?aviso=' + props.id); };
@@ -903,7 +921,7 @@ app.component('s-post', {
       try { await actions.removePost(props.id); closeSheet(); toast('Publicación borrada'); } catch (e) { toast(e.message); }
     };
     const openPet = () => pet.value && openSheet('pet', pet.value.id);
-    return { p, pet, comment, confirmDel, box, like, send, remove, openPet, pieces, searchTag, petAvatar, closeSheet, member, askAccount, status, isSaved, toggleSave, share, timeAgo, M, BRAND, focus: () => member('comentar fotos') && box.value && box.value.focus() };
+    return { p, pet, comment, confirmDel, box, like, send, remove, openPet, pieces, searchTag, petAvatar, closeSheet, member, askAccount, status, denounce, visibleComments, isSaved, toggleSave, share, timeAgo, M, BRAND, focus: () => member('comentar fotos') && box.value && box.value.focus() };
   },
   template: `
     <section class="sheet" role="dialog" aria-modal="true" :aria-label="p ? 'Foto de ' + (p.petName || 'una mascota') : 'Publicación'">
@@ -930,10 +948,11 @@ app.component('s-post', {
             </div>
           </div>
           <p class="caption" v-if="p.text"><b>{{ p.author || 'Un vecino' }}</b>&nbsp;<template v-for="(s,i) in pieces(p.text)" :key="i"><button v-if="s.tag" class="tag" @click="searchTag(s.t)">{{ s.t }}</button><template v-else>{{ s.t }}</template></template></p>
+          <button v-if="!p.mine" class="textlink report-flag" @click="denounce('post', p.id, p)"><ico name="flag" />Denunciar esta foto</button>
           <button v-if="p.mine" class="textlink postsheet__del" @click="remove"><ico name="trash" />{{ confirmDel ? '¿Seguro? Toca otra vez para borrar' : 'Borrar publicación' }}</button>
           <div class="comments">
             <h3>Comentarios</h3>
-            <div v-for="(c,i) in p.comments" :key="c.id || i" class="comment"><b v-if="c.author" style="display:block;font-size:11.5px">{{ c.author }}</b>{{ c.text }} <span class="meta">· {{ timeAgo(c.date) }}</span></div>
+            <div v-for="(c,i) in visibleComments(p.comments, 'comentario_post')" :key="c.id || i" class="comment"><b v-if="c.author" style="display:block;font-size:11.5px">{{ c.author }}</b>{{ c.text }} <span class="meta">· {{ timeAgo(c.date) }}</span><button class="comment__flag" @click="denounce('comentario_post', c.id, c)" aria-label="Denunciar comentario"><ico name="flag" /></button></div>
             <p v-if="!p.comments.length" class="meta">Sé el primero en comentar.</p>
             <button v-if="!status.user" class="btn btn--light btn--full comment-lock" @click="askAccount('comentar fotos')"><ico name="lock" />Entra o crea tu cuenta para comentar</button>
             <form v-else class="comment-form" @submit.prevent="send"><input ref="box" class="input" v-model="comment" maxlength="500" placeholder="Escribe algo bonito" aria-label="Comentario"><button class="btn btn--sm" aria-label="Enviar"><ico name="arrow" /></button></form>
@@ -977,16 +996,16 @@ app.component('s-newpet', {
             <template v-else><ico name="camera" /><strong>Su foto de perfil</strong><span>Una donde se le vea bien la carita</span></template>
             <input type="file" accept="image/*" @change="onFile" aria-label="Elegir foto">
           </label>
-          <div class="field"><label for="np-name">Nombre</label><input id="np-name" class="input" v-model="form.name" placeholder="Ej. Canela"></div>
+          <div class="field"><label for="np-name">Nombre</label><input id="np-name" class="input" maxlength="40" v-model="form.name" placeholder="Ej. Canela"></div>
           <div class="field"><span>Especie</span>
             <div class="species"><button v-for="(icon,k) in SPECIES" :key="k" type="button" class="chip" :class="{on:form.species===k}" @click="form.species=k"><ico :name="icon" />{{ k }}</button></div>
           </div>
           <div class="grid2">
-            <div class="field"><label for="np-breed">Raza</label><input id="np-breed" class="input" v-model="form.breed" placeholder="Mestizo"></div>
-            <div class="field"><label for="np-age">Edad</label><input id="np-age" class="input" v-model="form.age" placeholder="2 años"></div>
+            <div class="field"><label for="np-breed">Raza</label><input id="np-breed" class="input" maxlength="40" v-model="form.breed" placeholder="Mestizo"></div>
+            <div class="field"><label for="np-age">Edad</label><input id="np-age" class="input" maxlength="20" v-model="form.age" placeholder="2 años"></div>
           </div>
           <div class="field"><label for="np-zone">Barrio</label><select id="np-zone" class="input" v-model="form.zone"><option v-for="(_,z) in ZONES" :key="z">{{ z }}</option></select></div>
-          <div class="field"><label for="np-bio">Cuéntanos de su carácter</label><textarea id="np-bio" class="input" v-model="form.bio" placeholder="Dormilona, glotona y experta en pedir comida"></textarea></div>
+          <div class="field"><label for="np-bio">Cuéntanos de su carácter</label><textarea id="np-bio" class="input" maxlength="300" v-model="form.bio" placeholder="Dormilona, glotona y experta en pedir comida"></textarea></div>
           <p v-if="err" class="error" role="alert">{{ err }}</p>
           <button class="btn btn--green btn--full" :disabled="sending">{{ sending ? 'Guardando…' : 'Crear su álbum' }}<ico name="arrow" /></button>
         </form>
@@ -1007,7 +1026,7 @@ app.component('auth-form', {
       msg.value = ''; ok.value = '';
       try {
         if (mode.value === 'crear') {
-          if (f.name.trim().length < 2 || !/^\S+@\S+\.\S{2,}$/.test(f.email) || f.password.length < 6) return (msg.value = 'Escribe tu nombre, un correo válido y una contraseña de 6 caracteres o más.');
+          if (f.name.trim().length < 2 || !/^\S+@\S+\.\S{2,}$/.test(f.email) || f.password.length < 8) return (msg.value = 'Escribe tu nombre, un correo válido y una contraseña de 8 caracteres o más.');
           const r = await auth.signUp(f); if (r.pending) ok.value = 'Te enviamos un enlace a tu correo para activar la cuenta. Mientras tanto puedes seguir como invitado.'; else toast('Cuenta creada. Ya eres parte del barrio');
         } else if (mode.value === 'entrar') { await auth.signIn(f); toast('Qué bueno verte de nuevo'); }
         else { await auth.resetPassword(f.email); ok.value = 'Si ese correo tiene cuenta, te llegará un enlace.'; }
@@ -1025,7 +1044,7 @@ app.component('auth-form', {
       </div>
       <p v-else class="meta">Escribe tu correo y te mandamos un enlace para elegir una contraseña nueva.</p>
       <p v-if="offline" class="eauth__offline" role="status">Sin conexión con la comunidad. Por ahora puedes seguir como invitado y entrar cuando vuelva internet.</p>
-      <input v-if="mode==='crear'" class="input" v-model="f.name" autocomplete="name" placeholder="Tu nombre" aria-label="Tu nombre">
+      <input v-if="mode==='crear'" class="input" maxlength="40" v-model="f.name" autocomplete="name" placeholder="Tu nombre" aria-label="Tu nombre">
       <input class="input" v-model="f.email" type="email" inputmode="email" autocomplete="email" placeholder="tucorreo@gmail.com" aria-label="Correo">
       <div class="eauth__pass" v-if="mode!=='olvido'">
         <input class="input" v-model="f.password" :type="show ? 'text' : 'password'" :autocomplete="mode==='entrar' ? 'current-password' : 'new-password'" placeholder="Contraseña" aria-label="Contraseña">
@@ -1043,7 +1062,7 @@ app.component('auth-form', {
 app.component('v-gate', {
   setup() {
     const asGuest = () => { state.user.guest = true; toast('Entraste como invitado'); };
-    return { asGuest, M };
+    return { asGuest, M, openSheet };
   },
   template: `
     <div class="gate" role="dialog" aria-modal="true" aria-labelledby="gate-title">
@@ -1063,8 +1082,98 @@ app.component('v-gate', {
           <li class="yes"><ico name="check" />Publicar y comentar avisos, escribir por WhatsApp</li>
           <li class="no"><ico name="lock" />Publicar o comentar fotos, dar corazón, seguir, guardar y tener perfil</li>
         </ul>
+        <p class="gate__legal">Al entrar o seguir como invitado aceptas las <button class="textlink" @click="openSheet('reglas')">reglas del barrio y la privacidad</button>.</p>
       </section>
     </div>`,
+});
+
+/* ===================== HOJA: DENUNCIAR ===================== */
+app.component('s-denuncia', {
+  props: { opts: { type: Object, required: true } },
+  setup(props) {
+    const reasons = [['estafa', 'Estafa o pide dinero'], ['spam', 'Spam o publicidad'], ['inapropiado', 'Ofensivo o inapropiado'], ['maltrato', 'Maltrato animal'], ['falso', 'Aviso falso o engañoso'], ['otro', 'Otro motivo']];
+    const what = { post: 'esta foto', aviso: 'este aviso', comentario: 'este comentario', comentario_post: 'este comentario', mascota: 'esta mascota' }[props.opts.kind] || 'esto';
+    const reason = ref(''), detail = ref(''), sending = ref(false), err = ref(''), block = ref(false);
+    const who = props.opts.who;
+    const submit = async () => {
+      err.value = '';
+      if (!reason.value) return (err.value = 'Elige un motivo.');
+      sending.value = true;
+      try { await actions.denounce({ kind: props.opts.kind, id: props.opts.id, reason: reason.value, detail: detail.value.trim() }); }
+      catch (e) { console.info('Denuncia guardada solo en este teléfono', e); }
+      finally { sending.value = false; }
+      if (block.value && who && !state.user.blocked.includes(who.key)) state.user.blocked.push(who.key);
+      toast(block.value ? 'Gracias. Ya no verás nada de esta persona' : 'Gracias. Lo vamos a revisar y ya no lo verás');
+      // un comentario denunciado vuelve a su aviso o foto; una foto o un aviso denunciado se cierra
+      const b = props.opts.back;
+      if (b && props.opts.kind.startsWith('comentario')) openSheet(b.kind, b.id); else closeSheet();
+    };
+    const back = () => { const b = props.opts.back; if (b) openSheet(b.kind, b.id); else closeSheet(); };
+    return { reasons, what, reason, detail, sending, err, block, who, submit, back };
+  },
+  template: `
+    <section class="sheet" role="dialog" aria-modal="true" aria-label="Denunciar">
+      <div class="sheet__grab"><i></i></div>
+      <button class="sheet__x" @click="back" aria-label="Cerrar"><ico name="close" /></button>
+      <form class="sheet__body form" @submit.prevent="submit" novalidate>
+        <span class="badge" style="justify-self:start;margin-top:8px"><span class="badge__ico"><ico name="flag" /></span>DENUNCIAR</span>
+        <h2 style="font-size:24px">¿Qué pasa con {{ what }}?</h2>
+        <div class="reasons" role="radiogroup" aria-label="Motivo">
+          <button v-for="x in reasons" :key="x[0]" type="button" role="radio" :aria-checked="reason===x[0]" :class="{on:reason===x[0]}" @click="reason=x[0]"><i></i>{{ x[1] }}</button>
+        </div>
+        <div class="field"><label for="dn-detail">Cuéntanos más <small>opcional</small></label><textarea id="dn-detail" class="input" v-model="detail" maxlength="300" placeholder="Ej. Me pidió un depósito antes de mostrarme al perro"></textarea></div>
+        <label v-if="who" class="check"><input type="checkbox" v-model="block"><span>No ver nada más de <b>{{ who.name || 'esta persona' }}</b> (bloquear)</span></label>
+        <p v-if="err" class="error" role="alert">{{ err }}</p>
+        <button class="btn btn--full" :disabled="sending">{{ sending ? 'Enviando…' : 'Enviar denuncia' }}</button>
+        <p class="meta">Quien publicó no sabrá que fuiste tú. Si alguien te amenaza o te pide dinero, avisa también a la policía.</p>
+      </form>
+    </section>`,
+});
+
+/* ===================== HOJA: REGLAS DEL BARRIO Y PRIVACIDAD ===================== */
+app.component('s-reglas', {
+  setup: () => ({ closeSheet, support: CFG.supportEmail || '' }),
+  template: `
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="reglas-title">
+      <div class="sheet__grab"><i></i></div>
+      <button class="sheet__x" @click="closeSheet" aria-label="Cerrar"><ico name="close" /></button>
+      <div class="sheet__body reglas">
+        <span class="badge" style="margin-top:8px"><span class="badge__ico"><ico name="shield" /></span>REGLAS Y PRIVACIDAD</span>
+        <h2 id="reglas-title">Un barrio que se cuida.</h2>
+        <p class="meta">Última actualización: 13 de noviembre de 2026</p>
+
+        <h3>Reglas del barrio</h3>
+        <ol>
+          <li>Publica solo mascotas y avisos reales. Los avisos falsos se borran.</li>
+          <li>No vendas animales ni pongas publicidad fuera de los espacios de patrocinio.</li>
+          <li>Trata bien a todos: sin insultos, sin amenazas y sin publicar datos de otras personas.</li>
+          <li>Nadie pide ni paga dinero por adelantado para devolver una mascota. La recompensa se entrega en persona, con la mascota.</li>
+          <li>Si ves algo que no está bien, tócalo y elige «Denunciar». Lo revisamos. También puedes bloquear a esa persona para no ver nada más suyo.</li>
+        </ol>
+
+        <h3>Para encontrarse con seguridad</h3>
+        <ul>
+          <li>Encuéntrense de día en un lugar público y no vayas sin compañía.</li>
+          <li>Pide una foto reciente o un detalle que solo la familia conoce.</li>
+          <li>No compartas códigos que te lleguen por SMS ni datos de tu banco.</li>
+        </ul>
+
+        <h3>Qué datos guardamos</h3>
+        <ul>
+          <li><b>Si creas una cuenta:</b> tu correo y tu nombre.</li>
+          <li><b>Lo que publicas:</b> fotos, avisos y comentarios. Se ven en la app para todos.</li>
+          <li><b>Tu WhatsApp:</b> solo si lo pones en un aviso, y se ve en ese aviso para que te escriban.</li>
+          <li><b>La ubicación:</b> solo la del aviso, redondeada a unos 150 m. Tu ubicación de «Cerca de mí» no sale del teléfono.</li>
+          <li><b>Las fotos:</b> se achican antes de subirlas y pierden los datos ocultos del archivo, como el lugar donde se tomaron.</li>
+          <li><b>En tu teléfono:</b> tus guardados, tu foto de perfil y tu sesión.</li>
+        </ul>
+        <p>Los datos se guardan en Supabase. No los vendemos ni usamos publicidad que te siga. Las letras de la app (Google Fonts) y el mapa (Esri u OpenStreetMap) se cargan desde esos servicios, que ven tu dirección IP como cualquier página web.</p>
+
+        <h3>Cómo borrar tus datos</h3>
+        <p>Puedes borrar cada aviso o foto desde la misma publicación. En «Mi cuenta» puedes borrar tu cuenta con todo lo que publicaste, o borrar lo guardado en este teléfono.<template v-if="support"> Para cualquier consulta escribe a <b>{{ support }}</b>.</template></p>
+        <button class="btn btn--light btn--full" style="margin-top:18px" @click="closeSheet">Entendido</button>
+      </div>
+    </section>`,
 });
 
 /* ===================== HOJA: CUENTA ===================== */
@@ -1076,7 +1185,20 @@ app.component('s-cuenta', {
     // al entrar desde un candado se vuelve a lo que la persona estaba mirando
     watch(() => status.user, u => { if (u && props.opts.back) openSheet(props.opts.back.kind, props.opts.back.id); });
     const again = () => { closeSheet(); ui.welcome = true; };
-    return { status, auth, mine, closeSheet, again };
+    // borrar pide dos toques: el primero explica qué se borra
+    const confirmStep = ref(''), delMsg = ref('');
+    const askDelete = async () => {
+      if (confirmStep.value !== 'cuenta') { confirmStep.value = 'cuenta'; return; }
+      delMsg.value = '';
+      try { await auth.deleteAccount(); location.reload(); } catch (e) { delMsg.value = e.message; confirmStep.value = ''; }
+    };
+    const askWipe = () => {
+      if (confirmStep.value !== 'telefono') { confirmStep.value = 'telefono'; return; }
+      // también cierra la sesión guardada en este teléfono
+      try { Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+      window.HUELLAS.wipe(); location.reload();
+    };
+    return { state, status, auth, mine, closeSheet, again, openSheet, confirmStep, delMsg, askDelete, askWipe };
   },
   template: `
     <section class="sheet" role="dialog" aria-modal="true" aria-label="Mi cuenta">
@@ -1099,6 +1221,16 @@ app.component('s-cuenta', {
           <auth-form :start="opts.start || 'crear'" />
           <button v-if="opts.why" class="textlink" style="display:block;margin:4px auto 0" @click="closeSheet">Ahora no</button>
         </template>
+
+        <hr class="rule">
+        <span class="eyebrow">Privacidad y seguridad</span>
+        <button class="rowlink" @click="openSheet('reglas')"><ico name="shield" /><span>Reglas del barrio y privacidad</span><ico name="arrow" /></button>
+        <div class="privacy-actions">
+          <button v-if="status.user" class="textlink danger" :disabled="status.authBusy" @click="askDelete">{{ confirmStep==='cuenta' ? '¿Seguro? Se borran tu cuenta, tus fotos, tus avisos y tus comentarios. Toca otra vez para confirmar.' : 'Borrar mi cuenta' }}</button>
+          <button v-if="state.user.blocked.length" class="textlink" @click="state.user.blocked.splice(0)">Desbloquear a {{ state.user.blocked.length === 1 ? 'la persona bloqueada' : 'las ' + state.user.blocked.length + ' personas bloqueadas' }}</button>
+          <button class="textlink" @click="askWipe">{{ confirmStep==='telefono' ? 'Toca otra vez: se borra lo guardado en este teléfono y se cierra la sesión.' : 'Borrar los datos de este teléfono' }}</button>
+          <p v-if="delMsg" class="error" role="alert">{{ delMsg }}</p>
+        </div>
 
         <hr class="rule">
         <span class="eyebrow">Sobre 4 Patitas</span>

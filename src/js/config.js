@@ -13,6 +13,8 @@ window.HUELLAS_CONFIG = {
   sponsors: [],
   // WhatsApp al que escriben los negocios que quieren anunciarse (con 591 delante). Vacío: aún no se aceptan anuncios.
   adsWhatsApp: '',
+  // Correo de contacto que aparece en "Reglas del barrio y privacidad" (Google Play pide uno). Vacío: no se muestra.
+  supportEmail: '',
   supabaseUrl: 'https://qxpyyxoontyrikgdokip.supabase.co',
   supabaseKey: 'sb_publishable_DRUdKM_Rl-Vtjh8g8Vw4_A_W5dSQd5Z',
 };

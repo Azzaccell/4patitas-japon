@@ -20,30 +20,35 @@
   const redirectTo = () => location.origin + location.pathname;
 
   // ---------- conversión fila de la base ↔ objeto de la app ----------
+  // Una foto solo puede ser https, una imagen incrustada o un archivo propio de la app
+  const safeImg = u => (typeof u === 'string' && /^(https:\/\/|data:image\/(jpeg|png|webp|gif);base64,|assets\/|media\/)/.test(u) ? u : null);
   const toReport = row => H.lite([{
     id: row.id, type: row.type, species: row.species, name: row.name, breed: row.breed || '', color: row.color || '',
     zone: row.zone || '', lat: row.lat, lng: row.lng, desc: row.description || '', reward: row.reward || '',
-    contact: row.contact || '', photo: row.photo, video: row.video, petId: row.pet_id, likes: row.likes,
+    contact: String(row.contact || '').replace(/\D/g, ''), photo: safeImg(row.photo), video: row.video, petId: row.pet_id, likes: row.likes,
     date: Date.parse(row.created_at), comments: [], liked: liked.has(row.id),
-    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: row.avatar || '',
+    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: safeImg(row.avatar) || '',
   }])[0];
   const toPet = row => H.lite([{
     id: row.id, name: row.name, species: row.species, breed: row.breed || '', age: row.age || '', owner: row.owner || '',
-    zone: row.zone || '', bio: row.bio || '', traits: row.traits || [], photo: row.photo, video: row.video,
+    zone: row.zone || '', bio: row.bio || '', traits: row.traits || [], photo: safeImg(row.photo), video: row.video,
     accent: row.accent || '#EEDDB9', followers: row.followers, lost: row.lost,
-    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: row.avatar || '',
+    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: safeImg(row.avatar) || '',
   }])[0];
-  const toComment = row => ({ id: row.id, text: row.text, date: Date.parse(row.created_at), author: row.author || '', avatar: row.avatar || '' });
+  const toComment = row => ({ id: row.id, text: row.text, date: Date.parse(row.created_at), author: row.author || '', avatar: safeImg(row.avatar) || '', ownerId: row.user_id, oculto: !!row.oculto });
   const toPost = row => ({
-    id: row.id, petId: row.pet_id, petName: row.pet_name || '', petPhoto: row.pet_photo || row.photo, photo: row.photo, text: row.text || '',
-    zone: row.zone || '', likes: row.likes || 0, liked: liked.has(row.id), date: Date.parse(row.created_at), comments: [],
-    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: row.avatar || '',
+    id: row.id, petId: row.pet_id, petName: row.pet_name || '', petPhoto: safeImg(row.pet_photo) || safeImg(row.photo), photo: safeImg(row.photo), text: row.text || '',
+    zone: row.zone || '', likes: row.likes || 0, liked: liked.has(row.id), date: Date.parse(row.created_at), comments: [], oculto: !!row.oculto,
+    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: safeImg(row.avatar) || '',
   });
   // Nombre y foto de Google para guardar junto a lo publicado (solo si la base ya tiene esas columnas)
   const byline = () => (status.hasAuthor && status.user ? { author: status.user.name, avatar: status.user.avatar || null } : {});
 
   // Quién firma una publicación: el nombre de la cuenta o el que la persona puso en su perfil
   const postAuthor = () => state.user.name || (status.user && status.user.name) || '';
+
+  // El punto del aviso se guarda redondeado a una grilla de ~150 m: nunca la casa exacta de nadie
+  const blur = v => +(Math.round(v / 0.0015) * 0.0015).toFixed(5);
 
   const digits = c => { const d = String(c || '').replace(/\D/g, ''); return d.startsWith('591') ? d : '591' + d; };
 
@@ -181,6 +186,23 @@
     finally { status.authBusy = false; }
   }
 
+  // Borrar la cuenta: fotos subidas, publicaciones, avisos y la cuenta misma (función de supabase/seguridad.sql)
+  async function deleteAccount() {
+    ready(); if (!status.user) throw new Error('Entra con tu cuenta para borrarla.');
+    status.authBusy = true;
+    try {
+      const uid = status.uid;
+      const { data: files } = await sb.storage.from('fotos').list(uid, { limit: 1000 });
+      if (files && files.length) await sb.storage.from('fotos').remove(files.map(f => `${uid}/${f.name}`));
+      const { error } = await sb.rpc('borrar_mi_cuenta');
+      if (error) throw error;
+      await sb.auth.signOut();
+      H.wipe();
+      return { ok: true };
+    } catch (e) { throw new Error(/borrar_mi_cuenta|function|PGRST202/i.test((e && e.message) || '') ? 'Todavía no se puede borrar la cuenta desde la app: falta preparar la base de datos.' : es(e)); }
+    finally { status.authBusy = false; }
+  }
+
   async function logout() {
     if (!sb) return;
     status.authBusy = true;
@@ -292,7 +314,7 @@
   const local = {
     async addReport(form) {
       const id = 'r' + Date.now();
-      state.reports.unshift({ ...form, id, contact: digits(form.contact), date: Date.now(), likes: 0, liked: false, comments: [], mine: true });
+      state.reports.unshift({ ...form, id, lat: blur(form.lat), lng: blur(form.lng), contact: digits(form.contact), date: Date.now(), likes: 0, liked: false, comments: [], mine: true });
       if (form.petId) { const p = state.pets.find(x => x.id === form.petId); if (p) p.lost = true; }
       return id;
     },
@@ -315,6 +337,7 @@
     async likePost(p) { await local.toggleLike(p); },
     async commentPost(p, text) { await local.addComment(p, text); },
     async removePost(id) { const i = state.posts.findIndex(x => x.id === id); if (i > -1) state.posts.splice(i, 1); },
+    async denounce({ kind, id }) { const k = kind + ':' + id; if (!state.user.hidden.includes(k)) state.user.hidden.push(k); },
   };
 
   const remote = {
@@ -322,7 +345,7 @@
       const photo = await uploadPhoto(form.photo);
       const { data, error } = await sb.from('reports').insert({
         type: form.type, species: form.species, name: form.name.trim(), breed: form.breed, color: form.color, zone: form.zone,
-        lat: form.lat, lng: form.lng, description: form.desc, reward: form.type === 'perdido' ? form.reward : null,
+        lat: blur(form.lat), lng: blur(form.lng), description: form.desc, reward: form.type === 'perdido' ? form.reward : null,
         contact: digits(form.contact), photo, video: form.video || null, pet_id: form.petId || null, ...byline(),
       }).select().single();
       if (error) throw error;
@@ -397,6 +420,12 @@
       if (error) throw error;
       await local.removePost(id);
     },
+    // La denuncia queda para revisión (tabla de supabase/seguridad.sql); en este teléfono deja de verse ya
+    async denounce(d) {
+      await local.denounce(d);
+      const { error } = await sb.from('denuncias').insert({ kind: d.kind, target_id: String(d.id), reason: d.reason, detail: (d.detail || '').slice(0, 300) || null });
+      if (error && error.code !== '23505') console.info('La denuncia quedó solo en este teléfono:', error.message);
+    },
   };
 
   // En línea solo si la conexión funcionó; si no, todo sigue en modo local.
@@ -406,7 +435,7 @@
   // ¿Puede esta persona editar la alerta/mascota? En local: siempre. En línea: solo si es suya.
   const canEdit = item => !status.online || !!item.mine;
   const auth = {
-    signUp, signIn, resetPassword, setNewPassword, logout,
+    signUp, signIn, resetPassword, setNewPassword, logout, deleteAccount,
     login: loginGoogle, google: !!(sb && cfg.googleLogin),
     enabled: !!sb, hosted, siteUrl: cfg.siteUrl || '',
   };

@@ -13,6 +13,7 @@ create table if not exists public.posts (
   pet_photo text,
   zone text,
   likes integer not null default 0,
+  oculto boolean not null default false,  -- lo oculta seguridad.sql tras 3 denuncias
   author text,
   avatar text
 );
@@ -23,14 +24,19 @@ create table if not exists public.post_comments (
   post_id uuid not null references public.posts (id) on delete cascade,
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   text text not null check (char_length(text) between 1 and 500),
+  oculto boolean not null default false,
   author text,
   avatar text
 );
 
+-- por si las tablas se crearon con una versión anterior de este archivo
+alter table public.posts add column if not exists oculto boolean not null default false;
+alter table public.post_comments add column if not exists oculto boolean not null default false;
+
 create index if not exists posts_created_at on public.posts (created_at desc);
 create index if not exists post_comments_post on public.post_comments (post_id, created_at);
 
--- Reglas: todos leen; solo quien tiene cuenta publica, comenta y da corazón (los invitados entran con
+-- Reglas: todos leen (menos lo ocultado por denuncias, que solo ve su autor); solo quien tiene cuenta publica, comenta y da corazón (los invitados entran con
 -- una sesión anónima de Supabase y aquí no pueden escribir). Cada quien borra solo lo suyo.
 create or replace function public.con_cuenta() returns boolean language sql stable as $$
   select auth.uid() is not null and coalesce((auth.jwt() ->> 'is_anonymous')::boolean, false) = false;
@@ -42,14 +48,14 @@ alter table public.post_comments enable row level security;
 drop policy if exists "posts: leer" on public.posts;
 drop policy if exists "posts: publicar" on public.posts;
 drop policy if exists "posts: borrar" on public.posts;
-create policy "posts: leer" on public.posts for select using (true);
+create policy "posts: leer" on public.posts for select using (not oculto or user_id = auth.uid());
 create policy "posts: publicar" on public.posts for insert to authenticated with check (public.con_cuenta() and user_id = auth.uid() and likes = 0);
 create policy "posts: borrar" on public.posts for delete to authenticated using (user_id = auth.uid());
 
 drop policy if exists "post_comments: leer" on public.post_comments;
 drop policy if exists "post_comments: comentar" on public.post_comments;
 drop policy if exists "post_comments: borrar" on public.post_comments;
-create policy "post_comments: leer" on public.post_comments for select using (true);
+create policy "post_comments: leer" on public.post_comments for select using (not oculto or user_id = auth.uid());
 create policy "post_comments: comentar" on public.post_comments for insert to authenticated with check (public.con_cuenta() and user_id = auth.uid());
 create policy "post_comments: borrar" on public.post_comments for delete to authenticated using (user_id = auth.uid());
 

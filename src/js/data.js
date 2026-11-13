@@ -118,7 +118,13 @@ window.HUELLAS = (() => {
   });
   // teléfonos que ya tenían la app antes de que existiera Inicio social
   if (!Array.isArray(state.posts)) state.posts = seedPosts();
+  // lo que esta persona denunció deja de verse en su teléfono ('post:id', 'aviso:id', 'comentario:id')
+  if (!Array.isArray(state.user.hidden)) state.user.hidden = [];
+  // personas bloqueadas: su id de cuenta o, en los datos de ejemplo, 'nombre:<autor>'
+  if (!Array.isArray(state.user.blocked)) state.user.blocked = [];
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn('No se pudo guardar', e); } };
+  // borra todo lo que la app guardó en este teléfono (no toca la sesión de Supabase)
+  const wipe = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
   Vue.watch(state, save, { deep: true });
 
   const reset = () => { Object.assign(state, { reports: lite(seedReports()), pets: lite(seedPets()), posts: seedPosts() }); };
@@ -153,5 +159,5 @@ window.HUELLAS = (() => {
     return `hace ${d} día${d > 1 ? 's' : ''}`;
   };
 
-  return { CENTER, ZONES, TYPES, SPECIES, ACCENTS, accentOf, state, reset, km, matches, timeAgo, M, LITE, lite };
+  return { CENTER, ZONES, TYPES, SPECIES, ACCENTS, accentOf, state, reset, wipe, km, matches, timeAgo, M, LITE, lite };
 })();
