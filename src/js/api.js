@@ -63,6 +63,25 @@
   }
 
   // ---------- sesión ----------
+  // Una cuenta creada a partir de la sesión de invitado conserva un pase (JWT) que todavía dice
+  // "anónimo" hasta que se renueva, y la base le niega lo que pide cuenta. Si pasa eso, se renueva ya.
+  const claims = token => { try { return JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch (e) { return {}; } };
+  async function freshToken(session) {
+    if (!session || session.user.is_anonymous || !claims(session.access_token).is_anonymous) return session;
+    const { data, error } = await sb.auth.refreshSession();
+    return (!error && data.session) || session;
+  }
+  // Escritura que pide cuenta: si la base la rechaza por permisos, se renueva el pase y se intenta una vez más
+  async function asMember(run) {
+    let res = await run();
+    if (res.error && res.error.code === '42501' && status.user) {
+      await sb.auth.refreshSession();
+      res = await run();
+    }
+    if (res.error && res.error.code === '42501') throw new Error('Tu cuenta todavía no puede publicar. Si acabas de crearla, confirma tu correo, cierra sesión y vuelve a entrar.');
+    return res;
+  }
+
   function setSession(session) {
     const u = session && session.user;
     status.uid = u ? u.id : null;
@@ -142,6 +161,7 @@
         if (res.error) throw res.error;
         // con "Confirm email" activado, el correo queda pendiente hasta que se confirme
         if (res.data.user && res.data.user.is_anonymous) return { pending: true };
+        await sb.auth.refreshSession(); // el pase nuevo ya dice que es una cuenta
       } else {
         res = await sb.auth.signUp({ email: email.trim(), password, options: { data, emailRedirectTo: cfg.siteUrl || redirectTo() } });
         if (res.error) throw res.error;
@@ -224,6 +244,7 @@
         if (res.error) throw res.error;
         session = res.data.session;
       }
+      session = await freshToken(session);
       setSession(session);
       status.ready = true;
       // ¿Está activado el proveedor Google en Supabase? (Authentication → Sign In / Providers)
@@ -397,10 +418,10 @@
     async addPost(form) {
       const photo = await uploadPhoto(form.photo);
       const petPhoto = form.petPhoto && !form.petPhoto.startsWith('data:') ? form.petPhoto : photo;
-      const { data, error } = await sb.from('posts').insert({
+      const { data, error } = await asMember(() => sb.from('posts').insert({
         photo, text: form.text.trim(), pet_id: form.petId || null, pet_name: form.petName || null, pet_photo: petPhoto,
         zone: form.zone || null, author: postAuthor() || null, avatar: (status.user && status.user.avatar) || null,
-      }).select().single();
+      }).select().single());
       if (error) throw error;
       if (!state.posts.some(p => p.id === data.id)) state.posts.unshift(toPost(data));
       return data.id;
@@ -411,7 +432,7 @@
       if (!error && typeof data === 'number') p.likes = data;
     },
     async commentPost(p, text) {
-      const { data, error } = await sb.from('post_comments').insert({ post_id: p.id, text, author: postAuthor() || null }).select().single();
+      const { data, error } = await asMember(() => sb.from('post_comments').insert({ post_id: p.id, text, author: postAuthor() || null }).select().single());
       if (error) throw error;
       if (!p.comments.some(c => c.id === data.id)) p.comments.push(toComment(data));
     },
