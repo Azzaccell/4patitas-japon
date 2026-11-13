@@ -8,6 +8,13 @@ window.HUELLAS_CONFIG = {
   // Botón "Continuar con Google" (requiere activar el proveedor Google en Supabase). Desactivado por ahora:
   // las cuentas se crean con correo y contraseña.
   googleLogin: false,
+  // Patrocinios en Inicio (veterinarias, alimento, servicios...). Con la lista vacía se muestran espacios
+  // "disponibles". Cada uno: { kind: 'Veterinaria', name: 'Nombre', text: 'Qué ofrece', whatsapp: '5917XXXXXXX', url: 'https://...', photo: 'https://...' }
+  sponsors: [],
+  // WhatsApp al que escriben los negocios que quieren anunciarse (con 591 delante). Vacío: aún no se aceptan anuncios.
+  adsWhatsApp: '',
+  // Correo de contacto que aparece en "Reglas del barrio y privacidad" (Google Play pide uno). Vacío: no se muestra.
+  supportEmail: '',
   supabaseUrl: 'https://qxpyyxoontyrikgdokip.supabase.co',
   supabaseKey: 'sb_publishable_DRUdKM_Rl-Vtjh8g8Vw4_A_W5dSQd5Z',
 };

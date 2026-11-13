@@ -9,7 +9,8 @@
     ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: true, flowType: 'pkce', detectSessionInUrl: true } })
     : null;
 
-  const status = Vue.reactive({ online: false, connecting: !!sb, uid: null, user: null, authBusy: false, hasAuthor: false, googleReady: null, emailReady: null, autoconfirm: null, recovery: false });
+  // ready: ya se sabe si hay sesión con cuenta (así la pantalla de entrada no aparece y desaparece)
+  const status = Vue.reactive({ online: false, postsOnline: false, connecting: !!sb, ready: !sb, uid: null, user: null, authBusy: false, hasAuthor: false, googleReady: null, emailReady: null, autoconfirm: null, recovery: false });
   const notify = msg => H.onError && H.onError(msg);
   const liked = new Set(state.user.liked || []);
   const followed = new Set(state.user.followed || []);
@@ -19,22 +20,35 @@
   const redirectTo = () => location.origin + location.pathname;
 
   // ---------- conversión fila de la base ↔ objeto de la app ----------
+  // Una foto solo puede ser https, una imagen incrustada o un archivo propio de la app
+  const safeImg = u => (typeof u === 'string' && /^(https:\/\/|data:image\/(jpeg|png|webp|gif);base64,|assets\/|media\/)/.test(u) ? u : null);
   const toReport = row => H.lite([{
     id: row.id, type: row.type, species: row.species, name: row.name, breed: row.breed || '', color: row.color || '',
     zone: row.zone || '', lat: row.lat, lng: row.lng, desc: row.description || '', reward: row.reward || '',
-    contact: row.contact || '', photo: row.photo, video: row.video, petId: row.pet_id, likes: row.likes,
+    contact: String(row.contact || '').replace(/\D/g, ''), photo: safeImg(row.photo), video: row.video, petId: row.pet_id, likes: row.likes,
     date: Date.parse(row.created_at), comments: [], liked: liked.has(row.id),
-    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: row.avatar || '',
+    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: safeImg(row.avatar) || '',
   }])[0];
   const toPet = row => H.lite([{
     id: row.id, name: row.name, species: row.species, breed: row.breed || '', age: row.age || '', owner: row.owner || '',
-    zone: row.zone || '', bio: row.bio || '', traits: row.traits || [], photo: row.photo, video: row.video,
+    zone: row.zone || '', bio: row.bio || '', traits: row.traits || [], photo: safeImg(row.photo), video: row.video,
     accent: row.accent || '#EEDDB9', followers: row.followers, lost: row.lost,
-    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: row.avatar || '',
+    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: safeImg(row.avatar) || '',
   }])[0];
-  const toComment = row => ({ id: row.id, text: row.text, date: Date.parse(row.created_at), author: row.author || '', avatar: row.avatar || '' });
+  const toComment = row => ({ id: row.id, text: row.text, date: Date.parse(row.created_at), author: row.author || '', avatar: safeImg(row.avatar) || '', ownerId: row.user_id, oculto: !!row.oculto });
+  const toPost = row => ({
+    id: row.id, petId: row.pet_id, petName: row.pet_name || '', petPhoto: safeImg(row.pet_photo) || safeImg(row.photo), photo: safeImg(row.photo), text: row.text || '',
+    zone: row.zone || '', likes: row.likes || 0, liked: liked.has(row.id), date: Date.parse(row.created_at), comments: [], oculto: !!row.oculto,
+    ownerId: row.user_id, mine: !!status.uid && row.user_id === status.uid, author: row.author || '', avatar: safeImg(row.avatar) || '',
+  });
   // Nombre y foto de Google para guardar junto a lo publicado (solo si la base ya tiene esas columnas)
   const byline = () => (status.hasAuthor && status.user ? { author: status.user.name, avatar: status.user.avatar || null } : {});
+
+  // Quién firma una publicación: el nombre de la cuenta o el que la persona puso en su perfil
+  const postAuthor = () => state.user.name || (status.user && status.user.name) || '';
+
+  // El punto del aviso se guarda redondeado a una grilla de ~150 m: nunca la casa exacta de nadie
+  const blur = v => +(Math.round(v / 0.0015) * 0.0015).toFixed(5);
 
   const digits = c => { const d = String(c || '').replace(/\D/g, ''); return d.startsWith('591') ? d : '591' + d; };
 
@@ -60,6 +74,7 @@
     // recalcula qué publicaciones son de esta persona
     state.reports.forEach(r => { if (r.ownerId !== undefined) r.mine = !!status.uid && r.ownerId === status.uid; });
     state.pets.forEach(p => { if (p.ownerId !== undefined) p.mine = !!status.uid && p.ownerId === status.uid; });
+    (state.posts || []).forEach(p => { if (p.ownerId !== undefined) p.mine = !!status.uid && p.ownerId === status.uid; });
   }
 
   // Vuelta de Google: limpia ?code= / ?error= de la dirección y avisa si algo falló
@@ -171,6 +186,23 @@
     finally { status.authBusy = false; }
   }
 
+  // Borrar la cuenta: fotos subidas, publicaciones, avisos y la cuenta misma (función de supabase/seguridad.sql)
+  async function deleteAccount() {
+    ready(); if (!status.user) throw new Error('Entra con tu cuenta para borrarla.');
+    status.authBusy = true;
+    try {
+      const uid = status.uid;
+      const { data: files } = await sb.storage.from('fotos').list(uid, { limit: 1000 });
+      if (files && files.length) await sb.storage.from('fotos').remove(files.map(f => `${uid}/${f.name}`));
+      const { error } = await sb.rpc('borrar_mi_cuenta');
+      if (error) throw error;
+      await sb.auth.signOut();
+      H.wipe();
+      return { ok: true };
+    } catch (e) { throw new Error(/borrar_mi_cuenta|function|PGRST202/i.test((e && e.message) || '') ? 'Todavía no se puede borrar la cuenta desde la app: falta preparar la base de datos.' : es(e)); }
+    finally { status.authBusy = false; }
+  }
+
   async function logout() {
     if (!sb) return;
     status.authBusy = true;
@@ -193,6 +225,7 @@
         session = res.data.session;
       }
       setSession(session);
+      status.ready = true;
       // ¿Está activado el proveedor Google en Supabase? (Authentication → Sign In / Providers)
       fetch(cfg.supabaseUrl + '/auth/v1/settings', { headers: { apikey: cfg.supabaseKey } })
         .then(r => r.json()).then(s => {
@@ -207,10 +240,12 @@
         if (event === 'SIGNED_IN' && s && !s.user.is_anonymous && status.user) notify('👋 ¡Hola, ' + status.user.name + '!');
       });
 
-      const [reports, pets, comments] = await Promise.all([
+      const [reports, pets, comments, posts, postComments] = await Promise.all([
         sb.from('reports').select('*').order('created_at', { ascending: false }).limit(500),
         sb.from('pets').select('*').order('created_at', { ascending: true }).limit(500),
         sb.from('comments').select('*').order('created_at', { ascending: true }).limit(3000),
+        sb.from('posts').select('*').order('created_at', { ascending: false }).limit(300),
+        sb.from('post_comments').select('*').order('created_at', { ascending: true }).limit(3000),
       ]);
       const err = reports.error || pets.error || comments.error;
       if (err) throw err;
@@ -221,19 +256,29 @@
       comments.data.forEach(c => byId[c.report_id] && byId[c.report_id].comments.push(toComment(c)));
       state.reports = list;
       state.pets = pets.data.map(toPet);
+      // Las publicaciones de Inicio necesitan la tabla de supabase/publicaciones.sql; sin ella quedan en este teléfono
+      if (!posts.error) {
+        const feed = posts.data.map(toPost);
+        const postById = Object.fromEntries(feed.map(p => [p.id, p]));
+        if (!postComments.error) postComments.data.forEach(c => postById[c.post_id] && postById[c.post_id].comments.push(toComment(c)));
+        state.posts = feed;
+        status.postsOnline = true;
+      } else console.info('Publicaciones solo en este teléfono:', posts.error.message);
       status.online = true;
       subscribe();
     } catch (e) {
       console.warn('4 Patitas sin conexión a la base de datos:', e);
       notify('Sin conexión con la comunidad: mostrando datos guardados en este equipo');
     } finally {
+      status.ready = true;
       status.connecting = false;
       status.authBusy = false;
     }
   }
 
   function subscribe() {
-    sb.channel('huellas')
+    const ch = sb.channel('huellas');
+    ch
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, ({ eventType, new: row, old }) => {
         const i = state.reports.findIndex(r => r.id === (row && row.id) || r.id === (old && old.id));
         if (eventType === 'DELETE') { if (i > -1) state.reports.splice(i, 1); return; }
@@ -249,15 +294,27 @@
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, ({ new: row }) => {
         const r = state.reports.find(x => x.id === row.report_id);
         if (r && !r.comments.some(c => c.id === row.id)) r.comments.push(toComment(row));
+      });
+    if (status.postsOnline) ch
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, ({ eventType, new: row, old }) => {
+        const i = state.posts.findIndex(p => p.id === (row && row.id) || p.id === (old && old.id));
+        if (eventType === 'DELETE') { if (i > -1) state.posts.splice(i, 1); return; }
+        const p = toPost(row);
+        if (i > -1) Object.assign(state.posts[i], { ...p, comments: state.posts[i].comments, liked: state.posts[i].liked });
+        else state.posts.unshift(p);
       })
-      .subscribe();
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'post_comments' }, ({ new: row }) => {
+        const p = state.posts.find(x => x.id === row.post_id);
+        if (p && !p.comments.some(c => c.id === row.id)) p.comments.push(toComment(row));
+      });
+    ch.subscribe();
   }
 
   // ---------- acciones ----------
   const local = {
     async addReport(form) {
       const id = 'r' + Date.now();
-      state.reports.unshift({ ...form, id, contact: digits(form.contact), date: Date.now(), likes: 0, liked: false, comments: [], mine: true });
+      state.reports.unshift({ ...form, id, lat: blur(form.lat), lng: blur(form.lng), contact: digits(form.contact), date: Date.now(), likes: 0, liked: false, comments: [], mine: true });
       if (form.petId) { const p = state.pets.find(x => x.id === form.petId); if (p) p.lost = true; }
       return id;
     },
@@ -272,6 +329,15 @@
     async setReportType(r, type) { r.type = type; },
     async setPetLost(p, lost) { p.lost = lost; },
     async removeReport(id) { const i = state.reports.findIndex(x => x.id === id); if (i > -1) state.reports.splice(i, 1); },
+    async addPost(form) {
+      const id = 'po' + Date.now();
+      state.posts.unshift({ ...form, id, date: Date.now(), likes: 0, liked: false, comments: [], mine: true, author: postAuthor() });
+      return id;
+    },
+    async likePost(p) { await local.toggleLike(p); },
+    async commentPost(p, text) { await local.addComment(p, text); },
+    async removePost(id) { const i = state.posts.findIndex(x => x.id === id); if (i > -1) state.posts.splice(i, 1); },
+    async denounce({ kind, id }) { const k = kind + ':' + id; if (!state.user.hidden.includes(k)) state.user.hidden.push(k); },
   };
 
   const remote = {
@@ -279,7 +345,7 @@
       const photo = await uploadPhoto(form.photo);
       const { data, error } = await sb.from('reports').insert({
         type: form.type, species: form.species, name: form.name.trim(), breed: form.breed, color: form.color, zone: form.zone,
-        lat: form.lat, lng: form.lng, description: form.desc, reward: form.type === 'perdido' ? form.reward : null,
+        lat: blur(form.lat), lng: blur(form.lng), description: form.desc, reward: form.type === 'perdido' ? form.reward : null,
         contact: digits(form.contact), photo, video: form.video || null, pet_id: form.petId || null, ...byline(),
       }).select().single();
       if (error) throw error;
@@ -328,14 +394,48 @@
       if (error) throw error;
       await local.removeReport(id);
     },
+    async addPost(form) {
+      const photo = await uploadPhoto(form.photo);
+      const petPhoto = form.petPhoto && !form.petPhoto.startsWith('data:') ? form.petPhoto : photo;
+      const { data, error } = await sb.from('posts').insert({
+        photo, text: form.text.trim(), pet_id: form.petId || null, pet_name: form.petName || null, pet_photo: petPhoto,
+        zone: form.zone || null, author: postAuthor() || null, avatar: (status.user && status.user.avatar) || null,
+      }).select().single();
+      if (error) throw error;
+      if (!state.posts.some(p => p.id === data.id)) state.posts.unshift(toPost(data));
+      return data.id;
+    },
+    async likePost(p) {
+      await local.toggleLike(p);
+      const { data, error } = await sb.rpc('like_post', { pid: p.id, delta: p.liked ? 1 : -1 });
+      if (!error && typeof data === 'number') p.likes = data;
+    },
+    async commentPost(p, text) {
+      const { data, error } = await sb.from('post_comments').insert({ post_id: p.id, text, author: postAuthor() || null }).select().single();
+      if (error) throw error;
+      if (!p.comments.some(c => c.id === data.id)) p.comments.push(toComment(data));
+    },
+    async removePost(id) {
+      const { error } = await sb.from('posts').delete().eq('id', id);
+      if (error) throw error;
+      await local.removePost(id);
+    },
+    // La denuncia queda para revisión (tabla de supabase/seguridad.sql); en este teléfono deja de verse ya
+    async denounce(d) {
+      await local.denounce(d);
+      const { error } = await sb.from('denuncias').insert({ kind: d.kind, target_id: String(d.id), reason: d.reason, detail: (d.detail || '').slice(0, 300) || null });
+      if (error && error.code !== '23505') console.info('La denuncia quedó solo en este teléfono:', error.message);
+    },
   };
 
-  // En línea solo si la conexión funcionó; si no, todo sigue en modo local
-  const actions = Object.fromEntries(Object.keys(local).map(k => [k, (...a) => (status.online ? remote : local)[k](...a)]));
+  // En línea solo si la conexión funcionó; si no, todo sigue en modo local.
+  // Las publicaciones van aparte: dependen de que exista su tabla en la base.
+  const POSTS = ['addPost', 'likePost', 'commentPost', 'removePost'];
+  const actions = Object.fromEntries(Object.keys(local).map(k => [k, (...a) => ((POSTS.includes(k) ? status.postsOnline : status.online) ? remote : local)[k](...a)]));
   // ¿Puede esta persona editar la alerta/mascota? En local: siempre. En línea: solo si es suya.
   const canEdit = item => !status.online || !!item.mine;
   const auth = {
-    signUp, signIn, resetPassword, setNewPassword, logout,
+    signUp, signIn, resetPassword, setNewPassword, logout, deleteAccount,
     login: loginGoogle, google: !!(sb && cfg.googleLogin),
     enabled: !!sb, hosted, siteUrl: cfg.siteUrl || '',
   };

@@ -1,6 +1,6 @@
 // Genera index.html: la app completa en UN solo archivo (CSS, JS, ilustraciones y fotos incrustadas).
 // Uso: node build.js   ·   Desarrollo: node server.js → http://localhost:5220/dev.html
-const fs = require('fs'), path = require('path');
+const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const r = f => fs.readFileSync(path.join(__dirname, f), 'utf8');
 const MIME = { '.webp': 'image/webp', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg' };
 const uri = p => `data:${MIME[path.extname(p)]};base64,` + fs.readFileSync(path.join(__dirname, p)).toString('base64');
@@ -15,12 +15,31 @@ const dev = r('dev.html');
 const head = dev.slice(dev.indexOf('<meta charset'), dev.indexOf('<link rel="icon"')).trim();
 // el bundle de Supabase busca un <script src> para calcular su ruta; aquí todo va en línea
 const fix = s => s.replace('if(!e)throw new Error("Automatic publicPath is not supported in this browser")', 'if(!e)e=location.href');
-const js = f => `<script>\n${fix(r(f)).replace(/<\/script/gi, '<\\/script')}\n</script>`;
+const code = f => `\n${fix(r(f)).replace(/<\/script/gi, '<\\/script')}\n`;
+const scripts = [
+  `window.HUELLAS_MEDIA = ${JSON.stringify(media)};`,
+  ...['vendor/vue.global.prod.min.js', 'vendor/leaflet.min.js', 'vendor/supabase.min.js', 'src/js/config.js', 'src/js/data.js', 'src/js/api.js', 'src/js/app.js'].map(code),
+];
+
+// Política de seguridad del contenido: solo corren estos scripts (por su huella sha256), y la app solo
+// habla con su Supabase. 'unsafe-eval' lo necesita Vue para armar las pantallas a partir de sus plantillas.
+const sha = c => `'sha256-${crypto.createHash('sha256').update(c, 'utf8').digest('base64')}'`;
+const supabase = (/supabaseUrl:\s*'([^']+)'/.exec(r('src/js/config.js')) || [])[1] || '';
+const csp = [
+  "default-src 'none'",
+  `script-src ${scripts.map(sha).join(' ')} 'unsafe-eval'`,
+  "style-src 'unsafe-inline' https://fonts.googleapis.com",
+  'font-src https://fonts.gstatic.com',
+  'img-src data: blob: https:',
+  `connect-src data: ${supabase ? supabase + ' ' + supabase.replace(/^https:/, 'wss:') : ''}`.trim(),
+  "base-uri 'none'", "form-action 'none'", "object-src 'none'", "frame-src 'none'",
+].join('; ');
 
 const html = `<!doctype html>
 <html lang="es">
 <head>
 ${head}
+<meta http-equiv="Content-Security-Policy" content="${csp}">
 <link rel="icon" type="image/png" href="${media['assets/icono.png']}">
 <link rel="apple-touch-icon" href="${media['assets/icono.png']}">
 <style>
@@ -30,8 +49,7 @@ ${r('src/css/app.css')}
 </head>
 <body>
 <div id="app"></div>
-<script>window.HUELLAS_MEDIA = ${JSON.stringify(media)};</script>
-${['vendor/vue.global.prod.min.js', 'vendor/leaflet.min.js', 'vendor/supabase.min.js', 'src/js/config.js', 'src/js/data.js', 'src/js/api.js', 'src/js/app.js'].map(js).join('\n')}
+${scripts.map(c => `<script>${c}</script>`).join('\n')}
 </body>
 </html>
 `;

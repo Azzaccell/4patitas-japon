@@ -23,6 +23,9 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
     private static final int REQ_FILE = 1, REQ_LOCATION = 2;
     private static final String PAPER = "#FDF6EA", BAR = "#C8653F";
+    private static final String APP_URL = "file:///android_asset/index.html";
+    // lo único que la app abre fuera de ella: web segura, WhatsApp, correo, teléfono y mapas
+    private static final java.util.Set<String> EXTERNAL = new java.util.HashSet<>(java.util.Arrays.asList("https", "whatsapp", "mailto", "tel", "geo"));
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
     private GeolocationPermissions.Callback geoCallback;
@@ -42,7 +45,10 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
-        s.setAllowFileAccess(true);
+        s.setAllowFileAccess(true);                  // solo para abrir la app desde sus assets
+        s.setAllowFileAccessFromFileURLs(false);     // la página no puede leer otros archivos del teléfono
+        s.setAllowUniversalAccessFromFileURLs(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setGeolocationEnabled(true);
         s.setSupportZoom(false);
         s.setBuiltInZoomControls(false);
@@ -77,14 +83,16 @@ public class MainActivity extends Activity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri u = request.getUrl();
-                if ("file".equals(u.getScheme())) return false;
-                openExternal(u); // WhatsApp, mapas, correo: fuera de la app
+                // dentro de la app solo se abre la propia app; nada de otros archivos del teléfono
+                // comparación exacta: "index.html/../otro-archivo" no pasa por la app
+                if ("file".equals(u.getScheme()) && "/android_asset/index.html".equals(u.getPath())) return false;
+                openExternal(u); // WhatsApp, enlaces web, correo: fuera de la app
                 return true;
             }
         });
         setContentView(web);
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
-        else web.loadUrl("file:///android_asset/index.html");
+        else web.loadUrl(APP_URL);
     }
 
     private boolean hasLocation() {
@@ -93,13 +101,16 @@ public class MainActivity extends Activity {
     }
 
     private void openExternal(Uri u) {
-        try { startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
+        String scheme = u.getScheme() == null ? "" : u.getScheme().toLowerCase(java.util.Locale.ROOT);
+        if (!EXTERNAL.contains(scheme)) return; // intent:, file:, content:, javascript: y http sin cifrar quedan fuera
+        try { startActivity(new Intent(Intent.ACTION_VIEW, u).addCategory(Intent.CATEGORY_BROWSABLE)); } catch (Exception ignored) { }
     }
 
     /** Lo que la web puede pedirle al teléfono. */
     private class Bridge {
         @JavascriptInterface
         public void share(String title, String url) {
+            if (title == null || url == null || title.length() > 200 || !url.startsWith("https://")) return;
             Intent send = new Intent(Intent.ACTION_SEND);
             send.setType("text/plain");
             send.putExtra(Intent.EXTRA_SUBJECT, title);
